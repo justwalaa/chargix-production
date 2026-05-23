@@ -1,7 +1,7 @@
-import '../../../core/result/data_state.dart';
-import '../../../models/enums/user_role.dart';
-import '../../../models/user_model.dart';
-import '../../firestore/users_firestore_service.dart';
+import '../../core/result/data_state.dart';
+import '../../models/enums/user_role.dart';
+import '../../models/user_model.dart';
+import '../firestore/users_firestore_service.dart';
 
 /// User profile orchestration (auth → Firestore `users`).
 class UserRepository {

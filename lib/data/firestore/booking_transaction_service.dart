@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/firebase/firestore_paths.dart';
 import '../../core/result/data_state.dart';
-import '../../../../chargix_production/lib/models/booking_model.dart';
+import 'package:chargix_production/models/booking_model.dart';
 import '../../models/enums/booking_status.dart';
 import '../../models/station_model.dart';
 import '../../models/station_slot_model.dart';

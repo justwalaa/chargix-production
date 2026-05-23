@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/navigation/main_tab_scope.dart';
 import '../../core/result/data_state.dart';
 import '../../data/chargix_data.dart';
-import '../../../../chargix_production/lib/models/booking_model.dart';
+import 'package:chargix_production/models/booking_model.dart';
 import '../../models/station_model.dart';
 import '../../models/station_slot_model.dart';
 import '../../theme/tokens/tokens.dart';

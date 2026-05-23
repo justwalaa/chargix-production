@@ -1,7 +1,7 @@
-import '../../../core/result/data_state.dart';
-import '../../../models/charging_station.dart';
-import '../../../models/station_model.dart';
-import '../../firestore/stations_firestore_service.dart';
+import '../../core/result/data_state.dart';
+import '../../models/charging_station.dart';
+import '../../models/station_model.dart';
+import '../firestore/stations_firestore_service.dart';
 
 class StationRepository {
   StationRepository({StationsFirestoreService? service})

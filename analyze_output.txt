@@ -1,0 +1,260 @@
+﻿Analyzing chargix_production...                                 
+
+  error - Target of URI doesn't exist: '../../main_navigation.dart' - lib\core\routing\session_gate.dart:5:8 - uri_does_not_exist
+  error - The name 'MainNavigation' isn't a class - lib\core\routing\session_gate.dart:50:18 - creation_with_non_type
+  error - Target of URI doesn't exist: '../services/google_places_service.dart' - lib\data\chargix_data.dart:8:8 - uri_does_not_exist
+  error - Undefined class 'GooglePlacesService' - lib\data\chargix_data.dart:23:10 - undefined_class
+  error - Undefined name 'GooglePlacesService' - lib\data\chargix_data.dart:23:44 - undefined_identifier
+   info - Can't use a relative path to import a library in 'lib' - lib\data\firestore\booking_transaction_service.dart:5:8 - avoid_relative_lib_imports
+  error - Target of URI doesn't exist: '../../../../chargix_production/lib/models/booking_model.dart' - lib\data\firestore\booking_transaction_service.dart:5:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/enums/booking_status.dart' - lib\data\firestore\booking_transaction_service.dart:6:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/station_model.dart' - lib\data\firestore\booking_transaction_service.dart:7:8 - uri_does_not_exist
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\booking_transaction_service.dart:17:20 - non_type_as_type_argument
+  error - Undefined class 'StationModel' - lib\data\firestore\booking_transaction_service.dart:19:14 - undefined_class
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\booking_transaction_service.dart:31:47 - non_type_as_type_argument
+  error - The method 'BookingModel' isn't defined for the type 'BookingTransactionService' - lib\data\firestore\booking_transaction_service.dart:52:23 - undefined_method
+  error - Undefined name 'BookingStatus' - lib\data\firestore\booking_transaction_service.dart:57:19 - undefined_identifier
+  error - Undefined class 'BookingModel' - lib\data\firestore\booking_transaction_service.dart:92:14 - undefined_class
+  error - Undefined class 'BookingStatus' - lib\data\firestore\booking_transaction_service.dart:93:14 - undefined_class
+  error - Undefined name 'BookingStatus' - lib\data\firestore\booking_transaction_service.dart:117:26 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\data\firestore\booking_transaction_service.dart:118:26 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\data\firestore\booking_transaction_service.dart:125:33 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\data\firestore\booking_transaction_service.dart:126:26 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\data\firestore\booking_transaction_service.dart:127:26 - undefined_identifier
+   info - Can't use a relative path to import a library in 'lib' - lib\data\firestore\bookings_firestore_service.dart:4:8 - avoid_relative_lib_imports
+  error - Target of URI doesn't exist: '../../../../chargix_production/lib/models/booking_model.dart' - lib\data\firestore\bookings_firestore_service.dart:4:8 - uri_does_not_exist
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\bookings_firestore_service.dart:13:15 - non_type_as_type_argument
+  error - Undefined name 'BookingModel' - lib\data\firestore\bookings_firestore_service.dart:17:47 - undefined_identifier
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\bookings_firestore_service.dart:26:15 - non_type_as_type_argument
+  error - Undefined name 'BookingModel' - lib\data\firestore\bookings_firestore_service.dart:30:50 - undefined_identifier
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\bookings_firestore_service.dart:42:10 - non_type_as_type_argument
+  error - Undefined name 'BookingModel' - lib\data\firestore\bookings_firestore_service.dart:47:31 - undefined_identifier
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\bookings_firestore_service.dart:50:15 - non_type_as_type_argument
+  error - Undefined name 'BookingModel' - lib\data\firestore\bookings_firestore_service.dart:57:50 - undefined_identifier
+  error - Undefined class 'BookingModel' - lib\data\firestore\bookings_firestore_service.dart:69:30 - undefined_class
+  error - Target of URI doesn't exist: '../../models/enums/charging_session_status.dart' - lib\data\firestore\charging_sessions_firestore_service.dart:5:8 - uri_does_not_exist
+  error - Undefined name 'ChargingSessionStatus' - lib\data\firestore\charging_sessions_firestore_service.dart:51:37 - undefined_identifier
+  error - Undefined name 'ChargingSessionStatus' - lib\data\firestore\charging_sessions_firestore_service.dart:52:37 - undefined_identifier
+  error - Target of URI doesn't exist: '../../models/station_model.dart' - lib\data\firestore\stations_firestore_service.dart:4:8 - uri_does_not_exist
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\stations_firestore_service.dart:13:15 - non_type_as_type_argument
+  error - Undefined name 'StationModel' - lib\data\firestore\stations_firestore_service.dart:15:50 - undefined_identifier
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\stations_firestore_service.dart:18:15 - non_type_as_type_argument
+  error - Undefined name 'StationModel' - lib\data\firestore\stations_firestore_service.dart:22:50 - undefined_identifier
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\stations_firestore_service.dart:28:10 - non_type_as_type_argument
+  error - Undefined name 'StationModel' - lib\data\firestore\stations_firestore_service.dart:33:31 - undefined_identifier
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\stations_firestore_service.dart:36:10 - non_type_as_type_argument
+  error - Undefined name 'StationModel' - lib\data\firestore\stations_firestore_service.dart:42:31 - undefined_identifier
+  error - Undefined class 'StationModel' - lib\data\firestore\stations_firestore_service.dart:48:30 - undefined_class
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\firestore\stations_firestore_service.dart:62:41 - non_type_as_type_argument
+   info - Can't use a relative path to import a library in 'lib' - lib\data\repositories\booking_repository.dart:2:8 - avoid_relative_lib_imports
+  error - Target of URI doesn't exist: '../../../../../chargix_production/lib/models/booking_model.dart' - lib\data\repositories\booking_repository.dart:2:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../../models/station_model.dart' - lib\data\repositories\booking_repository.dart:3:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../../models/enums/booking_status.dart' - lib\data\repositories\booking_repository.dart:4:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../firestore/booking_transaction_service.dart' - lib\data\repositories\booking_repository.dart:5:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../firestore/bookings_firestore_service.dart' - lib\data\repositories\booking_repository.dart:6:8 - uri_does_not_exist
+  error - Undefined class 'BookingsFirestoreService' - lib\data\repositories\booking_repository.dart:10:22 - undefined_class
+  error - The method 'BookingsFirestoreService' isn't defined for the type 'BookingRepository' - lib\data\repositories\booking_repository.dart:11:31 - undefined_method
+  error - Undefined class 'BookingsFirestoreService' - lib\data\repositories\booking_repository.dart:15:9 - undefined_class
+  error - Undefined class 'BookingTransactionService' - lib\data\repositories\booking_repository.dart:16:9 - undefined_class
+  error - Undefined name 'BookingTransactionService' - lib\data\repositories\booking_repository.dart:17:7 - undefined_identifier
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\booking_repository.dart:19:15 - non_type_as_type_argument
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\booking_repository.dart:22:15 - non_type_as_type_argument
+  error - Undefined class 'BookingStatus' - lib\data\repositories\booking_repository.dart:27:14 - undefined_class
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\booking_repository.dart:42:25 - non_type_as_type_argument
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\booking_repository.dart:52:20 - non_type_as_type_argument
+  error - Undefined class 'StationModel' - lib\data\repositories\booking_repository.dart:54:14 - undefined_class
+  error - Undefined class 'BookingModel' - lib\data\repositories\booking_repository.dart:70:14 - undefined_class
+  error - Undefined class 'BookingStatus' - lib\data\repositories\booking_repository.dart:71:14 - undefined_class
+  error - Undefined class 'BookingModel' - lib\data\repositories\booking_repository.dart:80:39 - undefined_class
+  error - Target of URI doesn't exist: '../../firestore/charging_sessions_firestore_service.dart' - lib\data\repositories\charging_session_repository.dart:3:8 - uri_does_not_exist
+  error - Undefined class 'ChargingSessionsFirestoreService' - lib\data\repositories\charging_session_repository.dart:6:30 - undefined_class
+  error - The method 'ChargingSessionsFirestoreService' isn't defined for the type 'ChargingSessionRepository' - lib\data\repositories\charging_session_repository.dart:7:31 - undefined_method
+  error - Undefined class 'ChargingSessionsFirestoreService' - lib\data\repositories\charging_session_repository.dart:11:9 - undefined_class
+  error - Target of URI doesn't exist: '../../firestore/favorites_firestore_service.dart' - lib\data\repositories\favorites_repository.dart:3:8 - uri_does_not_exist
+  error - Undefined class 'FavoritesFirestoreService' - lib\data\repositories\favorites_repository.dart:6:24 - undefined_class
+  error - The method 'FavoritesFirestoreService' isn't defined for the type 'FavoritesRepository' - lib\data\repositories\favorites_repository.dart:7:31 - undefined_method
+  error - Undefined class 'FavoritesFirestoreService' - lib\data\repositories\favorites_repository.dart:11:9 - undefined_class
+   info - Can't use a relative path to import a library in 'lib' - lib\data\repositories\station_owner_repository.dart:2:8 - avoid_relative_lib_imports
+  error - Target of URI doesn't exist: '../../../../../chargix_production/lib/models/booking_model.dart' - lib\data\repositories\station_owner_repository.dart:2:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../../models/enums/booking_status.dart' - lib\data\repositories\station_owner_repository.dart:3:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../../models/enums/station_status.dart' - lib\data\repositories\station_owner_repository.dart:4:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../../models/station_model.dart' - lib\data\repositories\station_owner_repository.dart:6:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../firestore/booking_transaction_service.dart' - lib\data\repositories\station_owner_repository.dart:13:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../firestore/bookings_firestore_service.dart' - lib\data\repositories\station_owner_repository.dart:14:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../firestore/station_slots_firestore_service.dart' - lib\data\repositories\station_owner_repository.dart:15:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../firestore/stations_firestore_service.dart' - lib\data\repositories\station_owner_repository.dart:16:8 - uri_does_not_exist
+  error - Undefined class 'StationsFirestoreService' - lib\data\repositories\station_owner_repository.dart:21:5 - undefined_class
+  error - Undefined class 'StationSlotsFirestoreService' - lib\data\repositories\station_owner_repository.dart:22:5 - undefined_class
+  error - Undefined class 'BookingsFirestoreService' - lib\data\repositories\station_owner_repository.dart:23:5 - undefined_class
+  error - The method 'StationsFirestoreService' isn't defined for the type 'StationOwnerRepository' - lib\data\repositories\station_owner_repository.dart:24:40 - undefined_method
+  error - The method 'StationSlotsFirestoreService' isn't defined for the type 'StationOwnerRepository' - lib\data\repositories\station_owner_repository.dart:25:34 - undefined_method
+  error - The method 'BookingsFirestoreService' isn't defined for the type 'StationOwnerRepository' - lib\data\repositories\station_owner_repository.dart:26:40 - undefined_method
+  error - Undefined class 'StationsFirestoreService' - lib\data\repositories\station_owner_repository.dart:30:9 - undefined_class
+  error - Undefined class 'StationSlotsFirestoreService' - lib\data\repositories\station_owner_repository.dart:31:9 - undefined_class
+  error - Undefined class 'BookingsFirestoreService' - lib\data\repositories\station_owner_repository.dart:32:9 - undefined_class
+  error - Undefined class 'BookingTransactionService' - lib\data\repositories\station_owner_repository.dart:33:9 - undefined_class
+  error - Undefined name 'BookingTransactionService' - lib\data\repositories\station_owner_repository.dart:34:7 - undefined_identifier
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_owner_repository.dart:36:20 - non_type_as_type_argument
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_owner_repository.dart:48:10 - non_type_as_type_argument
+  error - Undefined class 'StationModel' - lib\data\repositories\station_owner_repository.dart:51:46 - undefined_class
+  error - The method 'StationModel' isn't defined for the type 'StationOwnerRepository' - lib\data\repositories\station_owner_repository.dart:83:9 - undefined_method
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_owner_repository.dart:111:15 - non_type_as_type_argument
+  error - Undefined class 'BookingModel' - lib\data\repositories\station_owner_repository.dart:115:14 - undefined_class
+  error - Undefined class 'BookingStatus' - lib\data\repositories\station_owner_repository.dart:116:14 - undefined_class
+  error - The method 'StationModel' isn't defined for the type 'StationOwnerRepository' - lib\data\repositories\station_owner_repository.dart:133:23 - undefined_method
+  error - Undefined name 'StationStatus' - lib\data\repositories\station_owner_repository.dart:143:17 - undefined_identifier
+  error - The method 'StationModel' isn't defined for the type 'StationOwnerRepository' - lib\data\repositories\station_owner_repository.dart:158:29 - undefined_method
+  error - Target of URI doesn't exist: '../../../models/charging_station.dart' - lib\data\repositories\station_repository.dart:2:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../../models/station_model.dart' - lib\data\repositories\station_repository.dart:3:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../firestore/stations_firestore_service.dart' - lib\data\repositories\station_repository.dart:4:8 - uri_does_not_exist
+  error - Undefined class 'StationsFirestoreService' - lib\data\repositories\station_repository.dart:7:22 - undefined_class
+  error - The method 'StationsFirestoreService' isn't defined for the type 'StationRepository' - lib\data\repositories\station_repository.dart:8:31 - undefined_method
+  error - Undefined class 'StationsFirestoreService' - lib\data\repositories\station_repository.dart:12:9 - undefined_class
+  error - Undefined class 'StationModel' - lib\data\repositories\station_repository.dart:15:35 - undefined_class
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_repository.dart:26:15 - non_type_as_type_argument
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_repository.dart:26:50 - non_type_as_type_argument
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_repository.dart:31:15 - non_type_as_type_argument
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_repository.dart:35:15 - non_type_as_type_argument
+  error - The name 'ChargingStation' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_repository.dart:37:15 - non_type_as_type_argument
+  error - The method 'toChargingStation' can't be unconditionally invoked because the receiver can be 'null' - lib\data\repositories\station_repository.dart:39:35 - unchecked_use_of_nullable_value
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_repository.dart:43:25 - non_type_as_type_argument
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_repository.dart:52:25 - non_type_as_type_argument
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_repository.dart:55:20 - non_type_as_type_argument
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\data\repositories\station_repository.dart:67:10 - non_type_as_type_argument
+  error - Target of URI doesn't exist: '../../../models/enums/user_role.dart' - lib\data\repositories\user_repository.dart:2:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../firestore/users_firestore_service.dart' - lib\data\repositories\user_repository.dart:4:8 - uri_does_not_exist
+  error - Undefined class 'UsersFirestoreService' - lib\data\repositories\user_repository.dart:8:19 - undefined_class
+  error - The method 'UsersFirestoreService' isn't defined for the type 'UserRepository' - lib\data\repositories\user_repository.dart:9:31 - undefined_method
+  error - Undefined class 'UsersFirestoreService' - lib\data\repositories\user_repository.dart:13:9 - undefined_class
+  error - Undefined class 'UserRole' - lib\data\repositories\user_repository.dart:35:5 - undefined_class
+  error - Undefined name 'UserRole' - lib\data\repositories\user_repository.dart:35:21 - undefined_identifier
+  error - Target of URI doesn't exist: '../../firestore/vehicles_firestore_service.dart' - lib\data\repositories\vehicle_repository.dart:3:8 - uri_does_not_exist
+  error - Undefined class 'VehiclesFirestoreService' - lib\data\repositories\vehicle_repository.dart:6:22 - undefined_class
+  error - The method 'VehiclesFirestoreService' isn't defined for the type 'VehicleRepository' - lib\data\repositories\vehicle_repository.dart:7:31 - undefined_method
+  error - Undefined class 'VehiclesFirestoreService' - lib\data\repositories\vehicle_repository.dart:11:9 - undefined_class
+  error - Target of URI doesn't exist: 'enums/charging_session_status.dart' - lib\models\charging_session_model.dart:4:8 - uri_does_not_exist
+  error - Undefined class 'ChargingSessionStatus' - lib\models\charging_session_model.dart:30:9 - undefined_class
+  error - Undefined name 'ChargingSessionStatus' - lib\models\charging_session_model.dart:68:15 - undefined_identifier
+  error - Target of URI doesn't exist: 'enums/user_role.dart' - lib\models\user_model.dart:4:8 - uri_does_not_exist
+  error - Undefined name 'UserRole' - lib\models\user_model.dart:15:17 - undefined_identifier
+  error - Undefined class 'UserRole' - lib\models\user_model.dart:30:9 - undefined_class
+  error - Undefined name 'UserRole' - lib\models\user_model.dart:72:13 - undefined_identifier
+  error - Undefined class 'UserRole' - lib\models\user_model.dart:91:5 - undefined_class
+  error - Target of URI doesn't exist: '../../models/enums/user_role.dart' - lib\screens\auth\login_screen.dart:7:8 - uri_does_not_exist
+  error - Undefined class 'UserRole' - lib\screens\auth\login_screen.dart:29:3 - undefined_class
+  error - Undefined name 'UserRole' - lib\screens\auth\login_screen.dart:29:27 - undefined_identifier
+  error - The name 'UserRole' isn't a type, so it can't be used as a type argument - lib\screens\auth\login_screen.dart:181:41 - non_type_as_type_argument
+  error - Invalid constant value - lib\screens\auth\login_screen.dart:184:38 - invalid_constant
+  error - Undefined name 'UserRole' - lib\screens\auth\login_screen.dart:184:38 - undefined_identifier
+  error - Invalid constant value - lib\screens\auth\login_screen.dart:189:38 - invalid_constant
+  error - Undefined name 'UserRole' - lib\screens\auth\login_screen.dart:189:38 - undefined_identifier
+  error - Target of URI doesn't exist: '../../core/navigation/main_tab_scope.dart' - lib\screens\booking\book_slot_screen.dart:4:8 - uri_does_not_exist
+   info - Can't use a relative path to import a library in 'lib' - lib\screens\booking\book_slot_screen.dart:7:8 - avoid_relative_lib_imports
+  error - Target of URI doesn't exist: '../../../../chargix_production/lib/models/booking_model.dart' - lib\screens\booking\book_slot_screen.dart:7:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/station_model.dart' - lib\screens\booking\book_slot_screen.dart:8:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../widgets/map/station_type_badge.dart' - lib\screens\booking\book_slot_screen.dart:13:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/map_station.dart' - lib\screens\booking\book_slot_screen.dart:14:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/partner_map_data.dart' - lib\screens\booking\book_slot_screen.dart:15:8 - uri_does_not_exist
+  error - Undefined class 'StationModel' - lib\screens\booking\book_slot_screen.dart:21:9 - undefined_class
+  error - Undefined class 'MapStation' - lib\screens\booking\book_slot_screen.dart:32:1 - undefined_class
+  error - Undefined name 'MapStation' - lib\screens\booking\book_slot_screen.dart:32:31 - undefined_identifier
+  error - The method 'PartnerMapData' isn't defined for the type '_BookSlotScreenState' - lib\screens\booking\book_slot_screen.dart:38:18 - undefined_method
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\screens\booking\book_slot_screen.dart:91:31 - non_type_as_type_argument
+  error - Undefined name 'MainTabScope' - lib\screens\booking\book_slot_screen.dart:99:7 - undefined_identifier
+  error - Undefined name 'MainTabIndex' - lib\screens\booking\book_slot_screen.dart:99:34 - undefined_identifier
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\screens\booking\book_slot_screen.dart:100:36 - non_type_as_type_argument
+  error - The method 'StationTypeBadge' isn't defined for the type '_BookSlotScreenState' - lib\screens\booking\book_slot_screen.dart:119:17 - undefined_method
+   info - Can't use a relative path to import a library in 'lib' - lib\screens\booking\booking_details_screen.dart:2:8 - avoid_relative_lib_imports
+  error - Target of URI doesn't exist: '../../../../chargix_production/lib/models/booking_model.dart' - lib\screens\booking\booking_details_screen.dart:2:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/enums/booking_status.dart' - lib\screens\booking\booking_details_screen.dart:3:8 - uri_does_not_exist
+  error - Undefined class 'BookingModel' - lib\screens\booking\booking_details_screen.dart:14:9 - undefined_class
+  error - Undefined class 'BookingStatus' - lib\screens\booking\booking_details_screen.dart:103:9 - undefined_class
+  error - Undefined name 'BookingStatus' - lib\screens\booking\booking_details_screen.dart:111:12 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\screens\booking\booking_details_screen.dart:112:12 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\screens\booking\booking_details_screen.dart:115:12 - undefined_identifier
+  error - Target of URI doesn't exist: '../../core/navigation/main_tab_scope.dart' - lib\screens\booking\booking_screen.dart:4:8 - uri_does_not_exist
+   info - Can't use a relative path to import a library in 'lib' - lib\screens\booking\booking_screen.dart:6:8 - avoid_relative_lib_imports
+  error - Target of URI doesn't exist: '../../../../chargix_production/lib/models/booking_model.dart' - lib\screens\booking\booking_screen.dart:6:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/enums/booking_status.dart' - lib\screens\booking\booking_screen.dart:7:8 - uri_does_not_exist
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\screens\booking\booking_screen.dart:33:37 - non_type_as_type_argument
+  error - Undefined name 'MainTabScope' - lib\screens\booking\booking_screen.dart:40:30 - undefined_identifier
+  error - Undefined name 'MainTabIndex' - lib\screens\booking\booking_screen.dart:40:57 - undefined_identifier
+  error - Undefined class 'BookingModel' - lib\screens\booking\booking_screen.dart:73:9 - undefined_class
+  error - Undefined name 'BookingStatus' - lib\screens\booking\booking_screen.dart:118:44 - undefined_identifier
+  error - Target of URI doesn't exist: '../../core/navigation/main_tab_scope.dart' - lib\screens\home\home_screen.dart:4:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/station_model.dart' - lib\screens\home\home_screen.dart:6:8 - uri_does_not_exist
+  error - Undefined name 'MainTabScope' - lib\screens\home\home_screen.dart:75:29 - undefined_identifier
+  error - Undefined name 'MainTabIndex' - lib\screens\home\home_screen.dart:75:56 - undefined_identifier
+  error - Undefined name 'MainTabScope' - lib\screens\home\home_screen.dart:102:29 - undefined_identifier
+  error - Undefined name 'MainTabIndex' - lib\screens\home\home_screen.dart:102:56 - undefined_identifier
+  error - Undefined name 'MainTabScope' - lib\screens\home\home_screen.dart:143:29 - undefined_identifier
+  error - Undefined name 'MainTabIndex' - lib\screens\home\home_screen.dart:143:56 - undefined_identifier
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\screens\home\home_screen.dart:156:36 - non_type_as_type_argument
+  error - Undefined class 'StationModel' - lib\screens\home\home_screen.dart:200:9 - undefined_class
+   info - The imported package 'mobile_scanner' isn't a dependency of the importing package - lib\screens\home\qr_scan_screen.dart:2:8 - depend_on_referenced_packages
+  error - Target of URI doesn't exist: 'package:mobile_scanner/mobile_scanner.dart' - lib\screens\home\qr_scan_screen.dart:2:8 - uri_does_not_exist
+  error - Undefined class 'MobileScannerController' - lib\screens\home\qr_scan_screen.dart:19:9 - undefined_class
+  error - The method 'MobileScannerController' isn't defined for the type '_QrScanScreenState' - lib\screens\home\qr_scan_screen.dart:19:47 - undefined_method
+  error - Undefined name 'DetectionSpeed' - lib\screens\home\qr_scan_screen.dart:20:21 - undefined_identifier
+  error - Undefined name 'CameraFacing' - lib\screens\home\qr_scan_screen.dart:21:13 - undefined_identifier
+  error - Undefined class 'BarcodeCapture' - lib\screens\home\qr_scan_screen.dart:33:26 - undefined_class
+  error - The method 'MobileScanner' isn't defined for the type '_QrScanScreenState' - lib\screens\home\qr_scan_screen.dart:97:11 - undefined_method
+  error - Target of URI doesn't exist: '../../models/station_model.dart' - lib\screens\profile\favorites_screen.dart:5:8 - uri_does_not_exist
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\screens\profile\favorites_screen.dart:31:37 - non_type_as_type_argument
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\screens\profile\favorites_screen.dart:87:22 - non_type_as_type_argument
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\screens\profile\favorites_screen.dart:90:27 - non_type_as_type_argument
+   info - Can't use a relative path to import a library in 'lib' - lib\screens\station\station_bookings_screen.dart:4:8 - avoid_relative_lib_imports
+  error - Target of URI doesn't exist: '../../../../chargix_production/lib/models/booking_model.dart' - lib\screens\station\station_bookings_screen.dart:4:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/enums/booking_status.dart' - lib\screens\station\station_bookings_screen.dart:5:8 - uri_does_not_exist
+  error - The name 'BookingModel' isn't a type, so it can't be used as a type argument - lib\screens\station\station_bookings_screen.dart:21:37 - non_type_as_type_argument
+  error - Undefined name 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:61:37 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:70:33 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:81:33 - undefined_identifier
+  error - Undefined class 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:99:22 - undefined_class
+  error - Undefined name 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:101:12 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:102:12 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:103:12 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:105:12 - undefined_identifier
+  error - Undefined name 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:106:12 - undefined_identifier
+  error - Undefined class 'BookingModel' - lib\screens\station\station_bookings_screen.dart:115:5 - undefined_class
+  error - Undefined class 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:116:5 - undefined_class
+  error - Undefined name 'BookingStatus' - lib\screens\station\station_bookings_screen.dart:122:21 - undefined_identifier
+  error - Target of URI doesn't exist: '../../models/station_model.dart' - lib\screens\station\station_dashboard_screen.dart:4:8 - uri_does_not_exist
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\screens\station\station_dashboard_screen.dart:22:32 - non_type_as_type_argument
+  error - The getter 'status' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:33:28 - undefined_getter
+  error - The getter 'status' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:44:35 - undefined_getter
+  error - The getter 'status' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:53:28 - undefined_getter
+  error - The getter 'name' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:56:32 - undefined_getter
+  error - The getter 'address' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:57:35 - undefined_getter
+  error - The getter 'availablePorts' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:66:41 - undefined_getter
+  error - The getter 'totalPorts' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:66:67 - undefined_getter
+  error - The getter 'pricePerKwh' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:74:43 - undefined_getter
+  error - The getter 'operatingHours' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:183:34 - undefined_getter
+  error - The getter 'operatingHours' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:183:71 - undefined_getter
+  error - The getter 'operatingHours' isn't defined for the type 'Object' - lib\screens\station\station_dashboard_screen.dart:183:108 - undefined_getter
+   info - 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\screens\station\station_owner_onboarding_screen.dart:72:9 - deprecated_member_use
+  error - Target of URI doesn't exist: '../../models/station_model.dart' - lib\screens\stations\station_details_screen.dart:3:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../widgets/map/station_type_badge.dart' - lib\screens\stations\station_details_screen.dart:8:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../models/map_station.dart' - lib\screens\stations\station_details_screen.dart:9:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../utils/map_station_mapper.dart' - lib\screens\stations\station_details_screen.dart:10:8 - uri_does_not_exist
+  error - Undefined class 'StationModel' - lib\screens\stations\station_details_screen.dart:19:9 - undefined_class
+  error - Undefined class 'MapStation' - lib\screens\stations\station_details_screen.dart:26:3 - undefined_class
+  error - Undefined name 'MapStationMapper' - lib\screens\stations\station_details_screen.dart:27:7 - undefined_identifier
+  error - The method 'StationTypeBadge' isn't defined for the type '_StationDetailsScreenState' - lib\screens\stations\station_details_screen.dart:39:11 - undefined_method
+  error - Target of URI doesn't exist: '../../models/station_model.dart' - lib\screens\stations\stations_screen.dart:4:8 - uri_does_not_exist
+  error - The name 'StationModel' isn't a type, so it can't be used as a type argument - lib\screens\stations\stations_screen.dart:18:37 - non_type_as_type_argument
+  error - Target of URI doesn't exist: '../models/enums/user_role.dart' - lib\services\auth_service.dart:10:8 - uri_does_not_exist
+  error - Undefined class 'UserRole' - lib\services\auth_service.dart:29:3 - undefined_class
+  error - Undefined name 'UserRole' - lib\services\auth_service.dart:29:26 - undefined_identifier
+  error - Undefined class 'UserRole' - lib\services\auth_service.dart:31:22 - undefined_class
+  error - Undefined name 'UserRole' - lib\services\auth_service.dart:232:19 - undefined_identifier
+  error - Target of URI doesn't exist: '../../models/station_model.dart' - lib\widgets\stations\station_list_tile.dart:3:8 - uri_does_not_exist
+  error - Undefined class 'StationModel' - lib\widgets\stations\station_list_tile.dart:14:9 - undefined_class
+
+flutter : 250 issues found. (ran in 5.0s)
+At C:\Users\walaa\AppData\Local\Temp\ps-script-0ae5fdb7-c606-48ec-9298-ba501d42f235.ps1:76 char:24
++ cd chargix_production; flutter analyze 2>&1 | Out-File -FilePath anal ...
++                        ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (250 issues found. (ran in 5.0s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

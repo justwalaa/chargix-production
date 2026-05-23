@@ -1,10 +1,10 @@
-import '../../../core/result/data_state.dart';
-import '../../../../../chargix_production/lib/models/booking_model.dart';
-import '../../../models/station_model.dart';
-import '../../../models/enums/booking_status.dart';
-import '../../firestore/booking_transaction_service.dart';
-import '../../firestore/bookings_firestore_service.dart';
-import '../../../models/station_slot_model.dart';
+import '../../core/result/data_state.dart';
+import 'package:chargix_production/models/booking_model.dart';
+import '../../models/station_model.dart';
+import '../../models/enums/booking_status.dart';
+import '../firestore/booking_transaction_service.dart';
+import '../firestore/bookings_firestore_service.dart';
+import '../../models/station_slot_model.dart';
 
 class BookingRepository {
   BookingRepository({BookingsFirestoreService? service})

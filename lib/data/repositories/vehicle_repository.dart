@@ -1,6 +1,6 @@
-import '../../../core/result/data_state.dart';
-import '../../../models/vehicle_model.dart';
-import '../../firestore/vehicles_firestore_service.dart';
+import '../../core/result/data_state.dart';
+import '../../models/vehicle_model.dart';
+import '../firestore/vehicles_firestore_service.dart';
 
 class VehicleRepository {
   VehicleRepository({VehiclesFirestoreService? service})
