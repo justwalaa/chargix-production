@@ -101,12 +101,12 @@ class StationBookingsScreen extends StatelessWidget {
       case BookingStatus.approved:
       case BookingStatus.confirmed:
       case BookingStatus.active:
-        return AppColors.success;
+        return AppColors.neonGreen;
       case BookingStatus.rejected:
       case BookingStatus.cancelled:
-        return AppColors.danger;
+        return AppColors.red;
       default:
-        return AppColors.logistics;
+        return AppColors.bg1;
     }
   }
 
