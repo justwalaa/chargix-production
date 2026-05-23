@@ -1,19 +1,19 @@
-import '../../../core/result/data_state.dart';
-import '../../../../../chargix_production/lib/models/booking_model.dart';
-import '../../../models/enums/booking_status.dart';
-import '../../../models/enums/station_status.dart';
-import '../../../models/operating_hours_model.dart';
-import '../../../models/station_model.dart';
-import '../../../models/station_registration_draft.dart';
-import '../../../models/station_slot_model.dart';
+import '../../core/result/data_state.dart';
+import 'package:chargix_production/models/booking_model.dart';
+import '../../models/enums/booking_status.dart';
+import '../../models/enums/station_status.dart';
+import '../../models/operating_hours_model.dart';
+import '../../models/station_model.dart';
+import '../../models/station_registration_draft.dart';
+import '../../models/station_slot_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../../core/firebase/firestore_paths.dart';
-import '../../../models/station_owner_profile_model.dart';
-import '../../firestore/booking_transaction_service.dart';
-import '../../firestore/bookings_firestore_service.dart';
-import '../../firestore/station_slots_firestore_service.dart';
-import '../../firestore/stations_firestore_service.dart';
+import '../../core/firebase/firestore_paths.dart';
+import '../../models/station_owner_profile_model.dart';
+import '../firestore/booking_transaction_service.dart';
+import '../firestore/bookings_firestore_service.dart';
+import '../firestore/station_slots_firestore_service.dart';
+import '../firestore/stations_firestore_service.dart';
 
 /// Station-operator workflows: slots, pricing, bookings approval.
 class StationOwnerRepository {

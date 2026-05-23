@@ -1,0 +1,13 @@
+﻿Analyzing chargix_production...                                 
+
+   info - 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\screens\map\map_screen.dart:86:9 - deprecated_member_use
+   info - 'timeLimit' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\screens\map\map_screen.dart:87:9 - deprecated_member_use
+   info - 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\screens\station\station_owner_onboarding_screen.dart:72:9 - deprecated_member_use
+
+flutter : 3 issues found. (ran in 14.4s)
+At C:\Users\walaa\AppData\Local\Temp\ps-script-b0250f46-3041-4211-a839-ae7c52e184e5.ps1:76 char:61
++ ... hargix_production; flutter pub get 2>&1; flutter analyze 2>&1 | Out-F ...
++                                              ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (3 issues found. (ran in 14.4s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

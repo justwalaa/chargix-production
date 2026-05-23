@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/chargix_data.dart';
-import '../../main_navigation.dart';
 import '../../models/user_model.dart';
+import '../../navigation/main_navigation.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/station/station_approval_pending_screen.dart';
 import '../../screens/station/station_main_navigation.dart';

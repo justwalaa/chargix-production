@@ -2,279 +2,383 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../../core/routing/session_gate.dart';
-import '../../services/auth_service.dart';
-import '../../theme/app_gradients.dart';
-import '../../theme/tokens/tokens.dart';
-import '../../widgets/auth/otp_six_fields.dart';
-import '../../widgets/chargix/chargix_brand_lockup.dart';
-
-/// Six-digit SMS verification with resend cooldown and Firebase Phone Auth submit.
 class OtpScreen extends StatefulWidget {
+  final String verificationId;
+  final String phoneE164;
+
   const OtpScreen({
     super.key,
+    required this.verificationId,
     required this.phoneE164,
   });
-
-  final String phoneE164;
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  final GlobalKey<OtpSixFieldsState> _otpKey = GlobalKey<OtpSixFieldsState>();
+  // Six individual controllers + focus nodes for the digit boxes.
+  final _controllers = List.generate(6, (_) => TextEditingController());
+  final _focusNodes = List.generate(6, (_) => FocusNode());
 
-  String _code = '';
-  bool _verifying = false;
-  bool _resending = false;
-  int _cooldown = 60;
-  Timer? _timer;
+  bool _isVerifying = false;
+  String? _errorMessage;
+
+  // Resend countdown (60 s)
+  int _resendSeconds = 60;
+  Timer? _resendTimer;
 
   @override
   void initState() {
     super.initState();
-    _startCooldown();
-  }
-
-  void _startCooldown() {
-    _timer?.cancel();
-    setState(() => _cooldown = 60);
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) {
-        t.cancel();
-        return;
-      }
-      if (_cooldown <= 1) {
-        t.cancel();
-        setState(() => _cooldown = 0);
-      } else {
-        setState(() => _cooldown--);
-      }
-    });
-  }
-
-  String get _maskedPhone {
-    final p = widget.phoneE164;
-    if (p.length < 8) {
-      return p;
-    }
-    final tail = p.substring(p.length - 2);
-    return '${p.substring(0, 4)} ••••• $tail';
-  }
-
-  Future<void> _verify(String code) async {
-    if (code.length != 6 || _verifying) {
-      return;
-    }
-    FocusScope.of(context).unfocus();
-    setState(() => _verifying = true);
-    try {
-      await AuthService.instance.submitSmsCode(code);
-      if (!mounted) {
-        return;
-      }
-      final home = await SessionGate.resolveHome();
-      if (!mounted) {
-        return;
-      }
-      await Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => home),
-        (_) => false,
-      );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) {
-        return;
-      }
-      _otpKey.currentState?.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message ?? 'Invalid code. Try again.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Verification failed: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _verifying = false);
-      }
-    }
-  }
-
-  Future<void> _resend() async {
-    if (_cooldown > 0 || _resending) {
-      return;
-    }
-    setState(() => _resending = true);
-    try {
-      await AuthService.instance.resendPhoneOtp(widget.phoneE164);
-      if (!mounted) {
-        return;
-      }
-      _otpKey.currentState?.clear();
-      _startCooldown();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A new code has been sent.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message ?? 'Could not resend code.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } on TimeoutException catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Resend timed out. Try again shortly.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _resending = false);
-      }
-    }
+    _startResendTimer();
+    // Auto-focus first digit on open.
+    WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _focusNodes[0].requestFocus(),
+    );
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _resendTimer?.cancel();
+    for (final c in _controllers) c.dispose();
+    for (final f in _focusNodes) f.dispose();
     super.dispose();
   }
 
+  // ── Timer ─────────────────────────────────────────────────────────────────
+
+  void _startResendTimer() {
+    _resendSeconds = 60;
+    _resendTimer?.cancel();
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      setState(() {
+        _resendSeconds--;
+        if (_resendSeconds <= 0) t.cancel();
+      });
+    });
+  }
+
+  // ── OTP helpers ───────────────────────────────────────────────────────────
+
+  String get _otpCode =>
+      _controllers.map((c) => c.text).join();
+
+  void _onDigitChanged(int index, String value) {
+    if (value.length == 1 && index < 5) {
+      _focusNodes[index + 1].requestFocus();
+    } else if (value.isEmpty && index > 0) {
+      _focusNodes[index - 1].requestFocus();
+    }
+
+    // Auto-verify when all 6 digits filled.
+    if (_otpCode.length == 6) {
+      _verifyOtp();
+    }
+  }
+
+  // Handle paste: fill all boxes from index 0.
+  void _onFieldTap(int index) {
+    _controllers[index].selection = TextSelection.fromPosition(
+      TextPosition(offset: _controllers[index].text.length),
+    );
+  }
+
+  Future<void> _verifyOtp() async {
+    final code = _otpCode;
+    if (code.length < 6) return;
+    if (_isVerifying) return;
+
+    setState(() {
+      _isVerifying = true;
+      _errorMessage = null;
+    });
+    _unfocus();
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: widget.verificationId,
+        smsCode: code,
+      );
+      // After sign-in, _ChargixAppState in app.dart detects the UID change
+      // and calls SessionGate.resolveHome() → navigates to MainNavigation.
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      // No manual navigation here — let the auth stream handle it.
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isVerifying = false;
+        _errorMessage = _friendlyError(e);
+      });
+      _clearDigits();
+      WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _focusNodes[0].requestFocus(),
+      );
+    }
+  }
+
+  void _clearDigits() {
+    for (final c in _controllers) c.clear();
+  }
+
+  void _unfocus() {
+    for (final f in _focusNodes) f.unfocus();
+  }
+
+  String _friendlyError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-verification-code':
+        return 'Incorrect code. Check the SMS and try again.';
+      case 'session-expired':
+        return 'Session expired. Please request a new code.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please wait a moment.';
+      default:
+        return e.message ?? 'Verification failed. Please try again.';
+    }
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final canResend = _cooldown == 0 && !_resending;
-
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: _verifying ? null : () => Navigator.of(context).maybePop(),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF080B14),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_rounded,
+                color: Color(0xFF5A7FA8), size: 20),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding:
+            const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 48),
+                _buildDigitRow(),
+                const SizedBox(height: 32),
+                _buildVerifyButton(),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  _buildError(),
+                ],
+                const SizedBox(height: 32),
+                _buildResendRow(),
+              ],
+            ),
+          ),
         ),
       ),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: Theme.of(context).brightness == Brightness.dark
-              ? AppGradients.heroDark
-              : AppGradients.hero(context),
+    );
+  }
+
+  Widget _buildHeader() {
+    final masked = _maskPhone(widget.phoneE164);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Enter verification code',
+          style: TextStyle(
+            color: Color(0xFFEEF4FF),
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
         ),
-        child: SafeArea(
-          child: AnimatedPadding(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            padding: EdgeInsets.only(bottom: bottomInset),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenGutter),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: AppSpacing.sm),
-                  const ChargixBrandLockup(compact: true, showTagline: false),
-                  const SizedBox(height: AppSpacing.xl),
-                  Text(
-                    'Enter code',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                        ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Sent to $_maskedPhone',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          height: 1.45,
-                        ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  OtpSixFields(
-                    key: _otpKey,
-                    enabled: !_verifying,
-                    onChanged: (c) => setState(() => _code = c),
-                    onCompleted: _verify,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _cooldown > 0
-                            ? 'Resend in ${_cooldown}s'
-                            : 'Did not receive a code?',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                      ),
-                      if (_cooldown == 0) ...[
-                        const SizedBox(width: 6),
-                        TextButton(
-                          onPressed: canResend ? _resend : null,
-                          child: _resending
-                              ? SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: scheme.primary,
-                                  ),
-                                )
-                              : const Text('Resend'),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-                  FilledButton(
-                    onPressed: (_code.length == 6 && !_verifying)
-                        ? () => _verify(_code)
-                        : null,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: _verifying
-                          ? const SizedBox(
-                              key: ValueKey('v'),
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              key: ValueKey('t'),
-                              'Verify & continue',
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
+        const SizedBox(height: 10),
+        RichText(
+          text: TextSpan(
+            style: const TextStyle(
+              color: Color(0xFF5A7FA8),
+              fontSize: 14,
+              height: 1.5,
+            ),
+            children: [
+              const TextSpan(text: 'We sent a 6-digit code to '),
+              TextSpan(
+                text: masked,
+                style: const TextStyle(
+                  color: Color(0xFF00D4FF),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDigitRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: List.generate(
+        6,
+            (i) => _DigitBox(
+          controller: _controllers[i],
+          focusNode: _focusNodes[i],
+          hasError: _errorMessage != null,
+          onChanged: (v) => _onDigitChanged(i, v),
+          onTap: () => _onFieldTap(i),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVerifyButton() {
+    return ElevatedButton(
+      onPressed: _isVerifying ? null : _verifyOtp,
+      child: _isVerifying
+          ? const SizedBox(
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF080B14)),
+        ),
+      )
+          : const Text('Verify'),
+    );
+  }
+
+  Widget _buildError() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF4D6A).withAlpha(15),
+        borderRadius: BorderRadius.circular(10),
+        border:
+        Border.all(color: const Color(0xFFFF4D6A).withAlpha(50), width: 1),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline,
+              color: Color(0xFFFF4D6A), size: 16),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(
+                color: Color(0xFFFF4D6A),
+                fontSize: 13,
+                height: 1.4,
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResendRow() {
+    final canResend = _resendSeconds <= 0 && !_isVerifying;
+    return Center(
+      child: _resendSeconds > 0
+          ? Text(
+        'Resend code in $_resendSeconds s',
+        style: const TextStyle(
+          color: Color(0xFF2E4060),
+          fontSize: 13,
+        ),
+      )
+          : TextButton(
+        onPressed: canResend ? _onResend : null,
+        child: const Text("Didn't receive it? Resend"),
+      ),
+    );
+  }
+
+  void _onResend() {
+    // Pop back to LoginScreen — user re-enters phone and triggers reCAPTCHA.
+    // This is the safest flow: reuses the same verifyPhoneNumber() path.
+    Navigator.of(context).pop();
+  }
+
+  String _maskPhone(String e164) {
+    if (e164.length < 5) return e164;
+    final visible = e164.substring(e164.length - 3);
+    final prefix = e164.substring(0, e164.length - 7);
+    return '$prefix *** $visible';
+  }
+}
+
+// ── Single digit input box ─────────────────────────────────────────────────
+
+class _DigitBox extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool hasError;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onTap;
+
+  const _DigitBox({
+    required this.controller,
+    required this.focusNode,
+    required this.hasError,
+    required this.onChanged,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 46,
+      height: 56,
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        maxLength: 1,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        onChanged: onChanged,
+        onTap: onTap,
+        style: const TextStyle(
+          color: Color(0xFFEEF4FF),
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0,
+        ),
+        decoration: InputDecoration(
+          counterText: '',
+          filled: true,
+          fillColor: controller.text.isNotEmpty
+              ? const Color(0xFF00D4FF).withAlpha(15)
+              : const Color(0xFF0D1526),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError
+                  ? const Color(0xFFFF4D6A)
+                  : controller.text.isNotEmpty
+                  ? const Color(0xFF00D4FF).withAlpha(80)
+                  : const Color(0xFF1E3A5F),
+              width: 1,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: hasError
+                  ? const Color(0xFFFF4D6A)
+                  : const Color(0xFF00D4FF),
+              width: 1.5,
+            ),
+          ),
+          contentPadding: EdgeInsets.zero,
         ),
       ),
     );

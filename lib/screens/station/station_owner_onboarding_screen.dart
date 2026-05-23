@@ -69,7 +69,9 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
   Future<void> _useMyLocation() async {
     try {
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       setState(() {
         _lat = pos.latitude;

@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/firebase/firestore_paths.dart';
-import '../../../../chargix_production/lib/models/booking_model.dart';
+import 'package:chargix_production/models/booking_model.dart';
 import 'base_firestore_service.dart';
 
 class BookingsFirestoreService extends BaseFirestoreService {

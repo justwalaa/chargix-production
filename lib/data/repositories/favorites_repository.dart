@@ -1,6 +1,6 @@
-import '../../../core/result/data_state.dart';
-import '../../../models/favorite_station_model.dart';
-import '../../firestore/favorites_firestore_service.dart';
+import '../../core/result/data_state.dart';
+import '../../models/favorite_station_model.dart';
+import '../firestore/favorites_firestore_service.dart';
 
 class FavoritesRepository {
   FavoritesRepository({FavoritesFirestoreService? service})

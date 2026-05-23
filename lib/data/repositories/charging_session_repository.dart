@@ -1,6 +1,6 @@
-import '../../../core/result/data_state.dart';
-import '../../../models/charging_session_model.dart';
-import '../../firestore/charging_sessions_firestore_service.dart';
+import '../../core/result/data_state.dart';
+import '../../models/charging_session_model.dart';
+import '../firestore/charging_sessions_firestore_service.dart';
 
 class ChargingSessionRepository {
   ChargingSessionRepository({ChargingSessionsFirestoreService? service})

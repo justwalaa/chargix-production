@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/navigation/main_tab_scope.dart';
 import '../../data/chargix_data.dart';
-import '../../../../chargix_production/lib/models/booking_model.dart';
+import 'package:chargix_production/models/booking_model.dart';
 import '../../models/enums/booking_status.dart';
 import '../../theme/tokens/tokens.dart';
 import '../../widgets/chargix/empty_state.dart';
