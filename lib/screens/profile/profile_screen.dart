@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../admin/admin_dashboard_screen.dart';
 import '../../data/chargix_data.dart';
 import '../../models/user_model.dart';
 import '../../theme/tokens/tokens.dart';
@@ -167,6 +168,28 @@ class ProfileScreen extends StatelessWidget {
                         MaterialPageRoute<void>(
                           builder: (_) =>
                               StationMainNavigation(stationId: stationId),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+              if (authUser?.email == 'walaamarie363@gmail.com') ...[
+                const SizedBox(height: AppSpacing.xl),
+
+                _sectionTitle(context, 'Admin'),
+
+                const SizedBox(height: AppSpacing.sm),
+
+                PremiumCard(
+                  child: SettingsTile(
+                    icon: Icons.admin_panel_settings_rounded,
+                    title: 'Admin Dashboard',
+                    subtitle: 'Review pending stations',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AdminDashboardScreen(),
                         ),
                       );
                     },

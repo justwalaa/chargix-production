@@ -1,13 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
-/// SessionGate listens to Firebase Auth state and routes accordingly.
-///
-/// - Authenticated  → shows [authenticatedBuilder]
-/// - Unauthenticated → shows [unauthenticatedBuilder]
-/// - Loading state  → shows a minimal dark loader
-///
-/// Keep the constructors pure – no side effects in build().
 class SessionGate extends StatelessWidget {
   final WidgetBuilder authenticatedBuilder;
   final WidgetBuilder unauthenticatedBuilder;

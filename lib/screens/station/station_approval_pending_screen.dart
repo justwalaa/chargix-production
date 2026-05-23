@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/app_gradients.dart';
 import '../../theme/tokens/tokens.dart';
 import '../../widgets/chargix/chargix_brand_lockup.dart';
@@ -47,6 +47,17 @@ class StationApprovalPendingScreen extends StatelessWidget {
                         color: scheme.onSurfaceVariant,
                         height: 1.45,
                       ),
+                ),
+                const SizedBox(height: 32),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                    },
+                    child: const Text('Sign out'),
+                  ),
                 ),
                 const Spacer(flex: 2),
                 Text(

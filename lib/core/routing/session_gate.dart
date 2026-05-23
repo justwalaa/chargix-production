@@ -18,7 +18,12 @@ abstract final class SessionGate {
     if (uid == null) {
       return const LoginScreen();
     }
+    debugPrint('BEFORE GET USER');
+
     final state = await ChargixData.users.getUser(uid);
+
+    debugPrint('AFTER GET USER');
+    debugPrint(state.toString());
     if (state is! DataSuccess<UserModel>) {
       return const LoginScreen();
     }
