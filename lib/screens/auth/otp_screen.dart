@@ -103,10 +103,8 @@ class _OtpScreenState extends State<OtpScreen> {
         verificationId: widget.verificationId,
         smsCode: code,
       );
-      // After sign-in, _ChargixAppState in app.dart detects the UID change
-      // and calls SessionGate.resolveHome() → navigates to MainNavigation.
+      // ChargixApp auth listener + root navigator reset shows the dashboard.
       await FirebaseAuth.instance.signInWithCredential(credential);
-      // No manual navigation here — let the auth stream handle it.
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -117,6 +115,18 @@ class _OtpScreenState extends State<OtpScreen> {
       WidgetsBinding.instance.addPostFrameCallback(
             (_) => _focusNodes[0].requestFocus(),
       );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isVerifying = false;
+        _errorMessage = 'Verification failed. Please try again.';
+      });
+      _clearDigits();
+    } finally {
+      // Success path: root navigator is replaced; only reset on failure above.
+      if (mounted && FirebaseAuth.instance.currentUser != null) {
+        setState(() => _isVerifying = false);
+      }
     }
   }
 

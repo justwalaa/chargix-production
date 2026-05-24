@@ -1,24 +1,32 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_settings_controller.dart';
 import '../../core/app_settings_scope.dart';
-import '../../services/auth_service.dart';
 import '../../theme/tokens/tokens.dart';
 import '../../widgets/chargix/premium_card.dart';
 import '../../widgets/chargix/settings_tile.dart';
 import '../profile/charging_preferences_screen.dart';
 import '../profile/privacy_security_screen.dart';
-import '../splash/splash_screen.dart';
 
 /// Preferences: appearance, notifications, language, and sign out.
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _signingOut = false;
 
   @override
   Widget build(BuildContext context) {
     final settings = AppSettingsScope.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = settings.themeMode == ThemeMode.dark ||
+        (settings.themeMode == ThemeMode.system &&
+            Theme.of(context).brightness == Brightness.dark);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -36,11 +44,9 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 SwitchListTile.adaptive(
                   value: isDark,
-                  onChanged: (v) {
-                    settings.setThemeMode(
-                      v ? ThemeMode.dark : ThemeMode.light,
-                    );
-                  },
+                  onChanged: _signingOut
+                      ? null
+                      : (v) => settings.setDarkMode(v),
                   secondary: Icon(
                     isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
                     color: scheme.primary,
@@ -114,7 +120,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
               subtitle: const Text('Sign out on this device'),
-              onTap: () => _confirmLogout(context),
+              onTap: _signingOut ? null : () => _confirmLogout(context),
             ),
           ),
         ],
@@ -231,15 +237,18 @@ class SettingsScreen extends StatelessWidget {
     if (go != true || !context.mounted) {
       return;
     }
-    await AuthService.instance.signOut();
-    if (!context.mounted) {
-      return;
+
+    setState(() => _signingOut = true);
+    try {
+      await FirebaseAuth.instance.signOut();
+    } finally {
+      if (mounted) {
+        setState(() => _signingOut = false);
+      }
     }
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => const SplashScreen(),
-      ),
-      (_) => false,
-    );
+    // ChargixApp auth listener routes to LoginScreen — pop settings stack.
+    if (context.mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
   }
 }

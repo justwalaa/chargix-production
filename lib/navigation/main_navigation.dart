@@ -1,22 +1,16 @@
 // lib/navigation/main_navigation.dart
 //
-// Production bottom-navigation shell for Chargix.
-// All four tabs wired to REAL existing screens – NO placeholders remain.
-//
-// Tab order:
-//   0 – Map       → MapScreen        (working, unchanged)
-//   1 – Stations  → StationsScreen
-//   2 – Activity  → BookingsScreen
-//   3 – Profile   → ProfileScreen
+// Driver shell: Home → Map → Activity → Profile
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:chargix_production/core/navigation/main_tab_scope.dart';
+import 'package:chargix_production/screens/home/home_screen.dart';
 import 'package:chargix_production/screens/map/map_screen.dart';
 import 'package:chargix_production/screens/profile/profile_screen.dart';
-
-import '../screens/booking/booking_screen.dart';
-import '../screens/stations/stations_screen.dart';
+import 'package:chargix_production/screens/booking/booking_screen.dart';
+import 'package:chargix_production/theme/app_colors.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -26,43 +20,48 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  int _currentIndex = 0;
+  int _currentIndex = MainTabIndex.home;
 
-  static const _bgColor  = Color(0xFF080B14);
-  static const _electric = Color(0xFF00D4FF);
-  static const _inactive = Color(0xFF2E4060);
-
-  // IndexedStack keeps all tabs alive in memory so state is preserved
-  // when switching tabs (e.g. map camera position, scroll offsets).
   static final List<Widget> _tabs = const [
-    MapScreen(),       // 0 – Map
-    StationsScreen(),  // 1 – Stations
-    BookingScreen(),  // 2 – Activity / Bookings
-    ProfileScreen(),   // 3 – Profile
+    HomeScreen(),
+    MapScreen(),
+    BookingScreen(),
+    ProfileScreen(),
   ];
+
+  void _goToTab(int index) {
+    if (index < 0 || index >= _tabs.length) return;
+    setState(() => _currentIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Keep status-bar icons light on the dark background.
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    SystemChrome.setSystemUIOverlayStyle(
+      isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+    );
 
-    return Scaffold(
-      backgroundColor: _bgColor,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _tabs,
-      ),
-      bottomNavigationBar: _ChargixNavBar(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-        electricColor: _electric,
-        inactiveColor: _inactive,
+    final electric = Theme.of(context).colorScheme.primary;
+    const inactive = AppColors.textMuted;
+
+    return MainTabScope(
+      goToTab: _goToTab,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _tabs,
+        ),
+        bottomNavigationBar: _ChargixNavBar(
+          currentIndex: _currentIndex,
+          onTap: _goToTab,
+          electricColor: electric,
+          inactiveColor: inactive,
+        ),
       ),
     );
   }
 }
-
-// ── Custom bottom nav bar ──────────────────────────────────────────────────
 
 class _ChargixNavBar extends StatelessWidget {
   final int currentIndex;
@@ -78,19 +77,20 @@ class _ChargixNavBar extends StatelessWidget {
   });
 
   static const _items = [
-    _NavItem(icon: Icons.map_rounded,         label: 'Map'),
-    _NavItem(icon: Icons.ev_station_rounded,  label: 'Stations'),
-    _NavItem(icon: Icons.history_rounded,     label: 'Activity'),
-    _NavItem(icon: Icons.person_rounded,      label: 'Profile'),
+    _NavItem(icon: Icons.home_rounded, label: 'Home'),
+    _NavItem(icon: Icons.map_rounded, label: 'Map'),
+    _NavItem(icon: Icons.history_rounded, label: 'Activity'),
+    _NavItem(icon: Icons.person_rounded, label: 'Profile'),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final surface = Theme.of(context).colorScheme.surface;
     return Container(
       height: 68 + MediaQuery.of(context).padding.bottom,
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A0F1C),
+        color: surface,
         border: Border(
           top: BorderSide(color: electricColor.withAlpha(30), width: 0.5),
         ),
@@ -106,7 +106,7 @@ class _ChargixNavBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(
           _items.length,
-              (i) => _NavButton(
+          (i) => _NavButton(
             item: _items[i],
             isSelected: i == currentIndex,
             activeColor: electricColor,
@@ -158,12 +158,12 @@ class _NavButton extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: isSelected
                     ? [
-                  BoxShadow(
-                    color: activeColor.withAlpha(80),
-                    blurRadius: 12,
-                    spreadRadius: 2,
-                  )
-                ]
+                        BoxShadow(
+                          color: activeColor.withAlpha(80),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                        ),
+                      ]
                     : [],
               ),
               child: Icon(
@@ -178,8 +178,7 @@ class _NavButton extends StatelessWidget {
               style: TextStyle(
                 color: isSelected ? activeColor : inactiveColor,
                 fontSize: 10,
-                fontWeight:
-                isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 letterSpacing: 0.5,
               ),
               child: Text(item.label),

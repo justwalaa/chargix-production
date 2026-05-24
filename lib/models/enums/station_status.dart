@@ -19,8 +19,15 @@ enum StationStatus {
   bool get isRejected => this == StationStatus.rejected;
 
   static StationStatus fromValue(String? raw) {
+    if (raw == null || raw.isEmpty) {
+      return StationStatus.pending;
+    }
+    final normalized = raw.trim();
+    if (normalized == 'pendingApproval' || normalized == 'pending_approval') {
+      return StationStatus.pending;
+    }
     return StationStatus.values.firstWhere(
-      (e) => e.value == raw,
+      (e) => e.value == normalized,
       orElse: () => StationStatus.pending,
     );
   }

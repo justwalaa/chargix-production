@@ -4,11 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../services/map_stations_services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../models/map_station.dart';
+import '../../services/map_stations_services.dart';
+import '../../utils/geo_utils.dart';
 import '../../widgets/map/chargix_map_fab_column.dart';
 import '../../widgets/map/map_loading_overlay.dart';
+import '../../widgets/map/map_search_bar.dart';
 import '../../widgets/map/station_preview_sheet.dart';
+import '../stations/station_details_screen.dart';
 
 /// Full-screen EV map.
 ///
@@ -35,7 +40,9 @@ class _MapScreenState extends State<MapScreen> {
   bool _initialCameraApplied = false;
 
   Set<Marker> _markers = {};
-  List<MapStation> _stations = [];
+  List<MapStation> _allStations = [];
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   late final MapStationsService _mapService;
   StreamSubscription<List<MapStation>>? _stationsSub;
@@ -58,8 +65,27 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _stationsSub?.cancel();
+    _searchController.dispose();
     _controller?.dispose();
     super.dispose();
+  }
+
+  List<MapStation> get _visibleStations {
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isEmpty) {
+      return _allStations;
+    }
+    return _allStations.where((s) {
+      if (s.name.toLowerCase().contains(q)) return true;
+      if (s.address.toLowerCase().contains(q)) return true;
+      final hint = s.external?.chargerTypeHint?.toLowerCase();
+      if (hint != null && hint.contains(q)) return true;
+      if (q.contains('ccs') && (hint?.contains('ccs') ?? false)) return true;
+      if (q.contains('type 2') && (hint?.contains('type') ?? false)) {
+        return true;
+      }
+      return false;
+    }).toList(growable: false);
   }
 
   // ── Location ───────────────────────────────────────────────────────────────
@@ -177,17 +203,38 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  Future<void> _onCameraIdle() async {
+    final controller = _controller;
+    if (controller == null || !mounted) return;
+
+    try {
+      final screen = MediaQuery.sizeOf(context);
+      final center = await controller.getLatLng(
+        ScreenCoordinate(
+          x: (screen.width / 2).round(),
+          y: (screen.height / 2).round(),
+        ),
+      );
+      await _mapService.refreshExternalIfMoved(
+        latitude: center.latitude,
+        longitude: center.longitude,
+      );
+    } on Object catch (e) {
+      debugPrint('MapScreen._onCameraIdle: $e');
+    }
+  }
+
   Future<void> _fitAllStations() async {
     final controller = _controller;
     if (controller == null) return;
-    if (_stations.isEmpty) return;
+    if (_visibleStations.isEmpty) return;
 
     await HapticFeedback.lightImpact();
 
     var minLat = 90.0, maxLat = -90.0;
     var minLng = 180.0, maxLng = -180.0;
 
-    for (final s in _stations) {
+    for (final s in _visibleStations) {
       if (s.latitude < minLat) minLat = s.latitude;
       if (s.latitude > maxLat) maxLat = s.latitude;
       if (s.longitude < minLng) minLng = s.longitude;
@@ -235,14 +282,43 @@ class _MapScreenState extends State<MapScreen> {
 
   void _onStationsUpdated(List<MapStation> stations) {
     if (!mounted) return;
-    _stations = stations;
+    _allStations = _attachDistances(stations);
+    _rebuildMarkers();
+  }
+
+  List<MapStation> _attachDistances(List<MapStation> stations) {
+    final user = _userLatLng;
+    if (user == null) {
+      return stations;
+    }
+    final withDist = stations
+        .map(
+          (s) => s.copyWith(
+            distanceKm: GeoUtils.distanceKm(
+              user.latitude,
+              user.longitude,
+              s.latitude,
+              s.longitude,
+            ),
+          ),
+        )
+        .toList(growable: false);
+    withDist.sort(
+      (a, b) => (a.distanceKm ?? double.infinity)
+          .compareTo(b.distanceKm ?? double.infinity),
+    );
+    return withDist;
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value);
     _rebuildMarkers();
   }
 
   void _rebuildMarkers() {
     if (!_iconsReady) return;
     final markers = <Marker>{};
-    for (final station in _stations) {
+    for (final station in _visibleStations) {
       markers.add(
         Marker(
           markerId: MarkerId(station.markerId),
@@ -262,6 +338,9 @@ class _MapScreenState extends State<MapScreen> {
     await HapticFeedback.selectionClick();
     if (!mounted) return;
 
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final partner = station.partner?.station;
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -278,6 +357,20 @@ class _MapScreenState extends State<MapScreen> {
             return StationPreviewSheet(
               station: station,
               scrollController: scrollController,
+              userId: uid,
+              distanceKm: station.distanceKm,
+              onViewPartnerDetails: partner == null
+                  ? null
+                  : () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => StationDetailsScreen(
+                            partnerStation: partner,
+                          ),
+                        ),
+                      );
+                    },
             );
           },
         );
@@ -327,6 +420,7 @@ class _MapScreenState extends State<MapScreen> {
               right: 8,
             ),
             onMapCreated: _onMapCreated,
+            onCameraIdle: () => unawaited(_onCameraIdle()),
           ),
 
           // ── Loading overlay ─────────────────────────────────────────────
@@ -335,27 +429,32 @@ class _MapScreenState extends State<MapScreen> {
             message: 'Locating you…',
           ),
 
-          // ── Header chip ─────────────────────────────────────────────────
+          // ── Search bar ──────────────────────────────────────────────────
           Positioned(
             top: topPad + 12,
             left: 16,
-            right: 72,
+            right: 16,
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 400),
               curve: Curves.easeOutCubic,
               opacity: _bootstrapComplete ? 1 : 0,
-              child: _MapHeaderChip(
-                ready: _bootstrapComplete,
-                stationCount: _stations.length,
-                chargixCount: _stations.where((s) => s.isPartner).length,
+              child: IgnorePointer(
+                ignoring: !_bootstrapComplete,
+                child: MapSearchBar(
+                  controller: _searchController,
+                  onChanged: _onSearchChanged,
+                  hintText: _allStations.isEmpty
+                      ? 'Finding stations…'
+                      : 'Search stations or places…',
+                ),
               ),
             ),
           ),
 
           // ── Legend ──────────────────────────────────────────────────────
-          if (_bootstrapComplete && _stations.isNotEmpty)
+          if (_bootstrapComplete && _allStations.isNotEmpty)
             Positioned(
-              top: topPad + 68,
+              top: topPad + 72,
               left: 16,
               child: _MapLegend(scheme: scheme),
             ),
@@ -380,58 +479,6 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─── Header Chip ──────────────────────────────────────────────────────────────
-
-class _MapHeaderChip extends StatelessWidget {
-  const _MapHeaderChip({
-    required this.ready,
-    required this.stationCount,
-    required this.chargixCount,
-  });
-
-  final bool ready;
-  final int stationCount;
-  final int chargixCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final label = stationCount == 0
-        ? 'Finding stations…'
-        : '$stationCount station${stationCount == 1 ? '' : 's'} nearby';
-
-    return IgnorePointer(
-      ignoring: !ready,
-      child: Material(
-        elevation: 2,
-        shadowColor: Colors.black26,
-        borderRadius: BorderRadius.circular(20),
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.95),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.ev_station_rounded, size: 20, color: scheme.primary),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
-                      ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

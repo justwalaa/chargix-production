@@ -1,6 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../theme/tokens/tokens.dart';
+import '../widgets/auth/session_loading_screen.dart';
+import '../widgets/chargix/empty_state.dart';
+import '../widgets/chargix/premium_card.dart';
+
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
@@ -10,37 +15,46 @@ class AdminDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Pending Stations'),
       ),
-      body: StreamBuilder<QuerySnapshot>(
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('stations')
-            .where('status', isEqualTo: 'pendingApproval')
+            .where('status', whereIn: ['pending', 'pendingApproval'])
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SessionLoadingScreen(message: 'Loading queue…');
+          }
+          if (snapshot.hasError) {
+            return ChargixEmptyState(
+              icon: Icons.cloud_off_rounded,
+              title: 'Could not load stations',
+              message: snapshot.error.toString(),
             );
           }
 
-          final docs = snapshot.data!.docs;
+          final docs = snapshot.data?.docs ?? [];
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text('No pending stations'),
+            return const ChargixEmptyState(
+              icon: Icons.fact_check_outlined,
+              title: 'No pending stations',
+              message: 'New partner registrations will appear here.',
             );
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(AppSpacing.screenGutter),
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final station =
-              docs[index].data() as Map<String, dynamic>;
+              docs[index].data();
 
               final docId = docs[index].id;
 
-              return Card(
-                margin: const EdgeInsets.all(12),
-                child: Padding(
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: PremiumCard(
+                  child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment:
@@ -48,16 +62,20 @@ class AdminDashboardScreen extends StatelessWidget {
                     children: [
                       Text(
                         station['name'] ?? 'Unnamed',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                       ),
 
                       const SizedBox(height: 8),
 
                       Text(
-                        station['phone'] ?? '',
+                        station['ownerPhoneE164']?.toString() ??
+                            station['phone']?.toString() ??
+                            '',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                       ),
 
                       const SizedBox(height: 16),
@@ -93,7 +111,8 @@ class AdminDashboardScreen extends StatelessWidget {
                                 });
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.error,
                               ),
                               child: const Text('Reject'),
                             ),
@@ -101,6 +120,7 @@ class AdminDashboardScreen extends StatelessWidget {
                         ],
                       ),
                     ],
+                  ),
                   ),
                 ),
               );

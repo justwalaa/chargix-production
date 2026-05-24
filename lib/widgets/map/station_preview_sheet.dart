@@ -158,7 +158,8 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
         if (widget.distanceKm != null) ...[
           const SizedBox(height: 8),
           Text(
-            GeoUtils.formatDistanceKm(widget.distanceKm),
+            '${GeoUtils.formatDistanceKm(widget.distanceKm)} · '
+            '~${_estimateDriveMinutes(widget.distanceKm!)} min drive',
             style: textTheme.labelLarge?.copyWith(color: scheme.primary),
           ),
         ],
@@ -214,6 +215,8 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
             label: const Text('Partner station details'),
           ),
         ] else ...[
+          _ExternalNetworkBanner(scheme: scheme, textTheme: textTheme),
+          const SizedBox(height: 16),
           if (external?.rating != null)
             Text(
               'Google rating ${external!.rating!.toStringAsFixed(1)}'
@@ -221,16 +224,32 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
               style: textTheme.bodyMedium,
             ),
           if (external?.chargerTypeHint != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              external!.chargerTypeHint!,
-              style: textTheme.labelLarge,
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InfoChip(
+                  icon: Icons.power_rounded,
+                  label: external!.chargerTypeHint!,
+                  tone: scheme.surfaceContainerHighest,
+                  onTone: scheme.onSurface,
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
-            'This charger is listed on Google Maps for discovery only. '
-            'Book sessions at Chargix partner stations.',
+            'Coordinates: ${station.latitude.toStringAsFixed(5)}, '
+            '${station.longitude.toStringAsFixed(5)}',
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Live availability, booking, and queue features are only available '
+            'at Chargix partner stations (green markers on the map).',
             style: textTheme.bodyMedium?.copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.4,
@@ -244,6 +263,57 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
           label: const Text('Directions'),
         ),
       ],
+    );
+  }
+}
+
+int _estimateDriveMinutes(double distanceKm) {
+  const avgUrbanKmh = 38.0;
+  return (distanceKm / avgUrbanKmh * 60).ceil().clamp(1, 999);
+}
+
+class _ExternalNetworkBanner extends StatelessWidget {
+  const _ExternalNetworkBanner({
+    required this.scheme,
+    required this.textTheme,
+  });
+
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.tertiaryContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(
+          color: scheme.tertiary.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Not on the Chargix network',
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: scheme.tertiary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'This location is from public map data. Navigate here for discovery — '
+            'book and track sessions only at verified Chargix partners.',
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

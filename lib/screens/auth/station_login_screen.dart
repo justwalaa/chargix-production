@@ -42,12 +42,19 @@ class _StationLoginScreenState extends State<StationLoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // SessionGate handles routing — no manual navigation needed.
+      // ChargixApp auth listener navigates to the resolved home shell.
+      if (mounted) setState(() => _isLoading = false);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = _friendlyError(e);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Sign in failed. Please try again.';
       });
     }
   }

@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/result/data_state.dart';
+import '../../services/station_places_verification_service.dart';
 import 'package:chargix_production/models/booking_model.dart';
 import '../../models/enums/booking_status.dart';
 import '../../models/enums/station_status.dart';
@@ -130,22 +133,41 @@ class StationOwnerRepository {
   }) async {
     try {
       final stationId = ownerUserId;
+      final verification =
+          await StationPlacesVerificationService.instance.verifyAtCoordinates(
+        stationName: draft.stationName,
+        latitude: draft.latitude,
+        longitude: draft.longitude,
+        formattedAddress: draft.address,
+      );
+      final autoApproved = verification.isVerifiedOnGoogle;
+      if (kDebugMode) {
+        debugPrint(
+          'Chargix onboarding: Places verify autoApproved=$autoApproved',
+        );
+      }
+
+      final lat = verification.latitude ?? draft.latitude;
+      final lng = verification.longitude ?? draft.longitude;
+
       final station = StationModel(
         id: stationId,
         name: draft.stationName,
         address: draft.address,
-        latitude: draft.latitude,
-        longitude: draft.longitude,
-        availablePorts: 0,
+        latitude: lat,
+        longitude: lng,
+        availablePorts: autoApproved ? 1 : 0,
         totalPorts: 2,
         pricePerKwh: 0.42,
         rating: 0,
-        status: StationStatus.pending,
+        status: autoApproved ? StationStatus.approved : StationStatus.pending,
         ownerUserId: ownerUserId,
         operatorId: ownerUserId,
-        description: 'Awaiting Chargix approval',
+        description: autoApproved
+            ? 'Verified via Google Maps listing'
+            : 'Awaiting Chargix approval',
         operatingHours: draft.operatingHours,
-        isPublic: false,
+        isPublic: autoApproved,
         city: draft.city,
         contactEmail: draft.contactEmail,
         contactPhone: draft.contactPhone,
