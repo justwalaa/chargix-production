@@ -26,7 +26,9 @@ class MainTabScope extends InheritedWidget {
 abstract final class MainTabIndex {
   static const int home = 0;
   static const int map = 1;
-  static const int stations = 2;
-  static const int bookings = 3;
-  static const int profile = 4;
+  static const int activity = 2;
+  static const int profile = 3;
+
+  /// Legacy alias — use [activity].
+  static const int bookings = activity;
 }

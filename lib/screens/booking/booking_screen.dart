@@ -37,7 +37,7 @@ class BookingScreen extends StatelessWidget {
         emptyMessage:
             'Reserve a charger from Stations or Map to track sessions here.',
         emptyActionLabel: 'Browse stations',
-        onEmptyAction: () => MainTabScope.goTo(context, MainTabIndex.stations),
+        onEmptyAction: () => MainTabScope.goTo(context, MainTabIndex.map),
         builder: (context, bookings) {
           return ListView.separated(
             padding: const EdgeInsets.all(AppSpacing.screenGutter),

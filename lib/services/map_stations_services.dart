@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../data/repositories/station_repository.dart';
 import '../models/map_station.dart';
 import '../models/station_model.dart';
+import '../utils/geo_utils.dart';
 import '../utils/map_station_mapper.dart';
 import 'google_places_service.dart';
 
@@ -34,6 +35,9 @@ class MapStationsService {
   List<MapStation> _externalStations = [];
   StreamSubscription<List<StationModel>>? _partnerSub;
 
+  double? _lastExternalLat;
+  double? _lastExternalLng;
+
   final _controller = StreamController<List<MapStation>>.broadcast();
 
   /// Merged stream of all stations for the current search area.
@@ -60,6 +64,30 @@ class MapStationsService {
     );
 
     // 2. Fetch external stations from Google Places (one-shot).
+    _lastExternalLat = latitude;
+    _lastExternalLng = longitude;
+    await _refreshExternal(latitude: latitude, longitude: longitude);
+  }
+
+  /// Refreshes Google Places results when the map center moves significantly.
+  Future<void> refreshExternalIfMoved({
+    required double latitude,
+    required double longitude,
+    double minMoveKm = 1.2,
+  }) async {
+    if (_lastExternalLat != null && _lastExternalLng != null) {
+      final moved = GeoUtils.distanceKm(
+        _lastExternalLat!,
+        _lastExternalLng!,
+        latitude,
+        longitude,
+      );
+      if (moved < minMoveKm) {
+        return;
+      }
+    }
+    _lastExternalLat = latitude;
+    _lastExternalLng = longitude;
     await _refreshExternal(latitude: latitude, longitude: longitude);
   }
 

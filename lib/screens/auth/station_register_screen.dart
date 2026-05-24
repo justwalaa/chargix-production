@@ -1,8 +1,13 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../models/picked_station_location.dart';
+import '../../services/station_places_verification_service.dart';
+import 'station_location_picker_screen.dart';
 
 class StationRegisterScreen extends StatefulWidget {
   const StationRegisterScreen({super.key});
@@ -25,7 +30,7 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
 
   // Section B — Station info
   final _stationNameController = TextEditingController();
-  final _addressController = TextEditingController();
+  PickedStationLocation? _pickedLocation;
 
   // Section C — Charger details
   final _chargerCountController = TextEditingController(text: '1');
@@ -55,7 +60,6 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
     _confirmPasswordController.dispose();
     _phoneController.dispose();
     _stationNameController.dispose();
-    _addressController.dispose();
     _chargerCountController.dispose();
     super.dispose();
   }
@@ -78,6 +82,11 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
       return;
     }
 
+    if (_pickedLocation == null) {
+      setState(() => _errorMessage = 'Pin your station on the map.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -95,6 +104,24 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
           '$_countryCode${_phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '')}';
 
       final firestore = FirebaseFirestore.instance;
+      final stationName = _stationNameController.text.trim();
+      final location = _pickedLocation!;
+
+      final verification =
+          await StationPlacesVerificationService.instance.verifyAtCoordinates(
+        stationName: stationName,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        formattedAddress: location.formattedAddress,
+        googlePlaceId: location.googlePlaceId,
+      );
+      final autoApproved = verification.isVerifiedOnGoogle;
+      if (kDebugMode) {
+        debugPrint(
+          'Chargix register: Places verify autoApproved=$autoApproved '
+          'confidence=${verification.confidence}',
+        );
+      }
 
       // 2. Write user profile.
       // Matches the fields read by SessionGate.resolveHome() via UserModel:
@@ -103,30 +130,46 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
       //   profile.phoneE164       → phoneE164 field
       await firestore.collection('users').doc(uid).set({
         'uid': uid,
+        'displayName': _ownerNameController.text.trim(),
         'name': _ownerNameController.text.trim(),
         'email': _emailController.text.trim(),
+        'phone': phoneE164,
         'phoneE164': phoneE164,
         'role': 'station',
-        'stationId': uid, // stationId == uid per SessionGate default
+        'stationId': uid,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // 3. Write station document.
-      // status: 'pendingApproval' → SessionGate routes to StationApprovalPendingScreen.
+      // 3. Write station document (auto-approved when verified on Google Maps).
       await firestore.collection('stations').doc(uid).set({
         'id': uid,
         'ownerId': uid,
         'ownerName': _ownerNameController.text.trim(),
         'ownerEmail': _emailController.text.trim(),
         'ownerPhoneE164': phoneE164,
-        'name': _stationNameController.text.trim(),
-        'address': _addressController.text.trim(),
-        'status': 'pendingApproval',
+        'name': stationName,
+        'address': location.formattedAddress,
+        'status': autoApproved ? 'approved' : 'pending',
+        'ownerUserId': uid,
+        'isPublic': autoApproved,
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+        'googlePlaceId': verification.matchedPlaceId ?? location.googlePlaceId,
+        'placesVerification': {
+          'verified': autoApproved,
+          'confidence': verification.confidence,
+          'matchedName': verification.matchedName,
+          'reason': verification.reason,
+          'checkedAt': FieldValue.serverTimestamp(),
+        },
         'chargersCount': int.tryParse(_chargerCountController.text) ?? 1,
         'connectorTypes': _connectorTypes.toList(),
         'powerKw': _powerKw,
+        'availablePorts': autoApproved ? 1 : 0,
+        'totalPorts': int.tryParse(_chargerCountController.text) ?? 1,
+        'pricePerKwh': 0.42,
+        'rating': 0,
         'createdAt': FieldValue.serverTimestamp(),
-        // Extended booking/pricing details collected in a later onboarding step.
       });
 
       // 4. Auth stream in app.dart handles navigation automatically —
@@ -220,7 +263,7 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
                 const SizedBox(height: 16),
                 _buildStationNameField(),
                 const SizedBox(height: 14),
-                _buildAddressField(),
+                _buildLocationPicker(),
 
                 const SizedBox(height: 32),
                 const Divider(color: Color(0xFF1A2840), thickness: 0.8),
@@ -500,23 +543,80 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
     );
   }
 
-  Widget _buildAddressField() {
-    return TextFormField(
-      controller: _addressController,
-      textInputAction: TextInputAction.next,
-      textCapitalization: TextCapitalization.sentences,
-      maxLines: 2,
-      style: const TextStyle(color: Color(0xFFEEF4FF), fontSize: 15),
-      decoration: const InputDecoration(
-        labelText: 'Station address',
-        hintText: 'Street, area, city',
-        prefixIcon: Icon(Icons.location_on_outlined,
-            color: Color(0xFF2E4060), size: 20),
-        alignLabelWithHint: true,
-      ),
-      validator: (v) =>
-      (v == null || v.trim().isEmpty) ? 'Enter the station address' : null,
+  Widget _buildLocationPicker() {
+    final loc = _pickedLocation;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Station location',
+          style: TextStyle(
+            color: Color(0xFF8AAAC8),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Material(
+          color: const Color(0xFF0D1526),
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: _openLocationPicker,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: loc != null
+                      ? const Color(0xFF00D4FF).withAlpha(80)
+                      : const Color(0xFF1E3A5F),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.map_rounded,
+                    color: loc != null
+                        ? const Color(0xFF00D4FF)
+                        : const Color(0xFF2E4060),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      loc?.formattedAddress ??
+                          'Tap to pin exact location on map',
+                      style: TextStyle(
+                        color: loc != null
+                            ? const Color(0xFFEEF4FF)
+                            : const Color(0xFF5A7FA8),
+                        fontSize: 14,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: Color(0xFF2E4060)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
+  }
+
+  Future<void> _openLocationPicker() async {
+    final picked = await Navigator.of(context).push<PickedStationLocation>(
+      MaterialPageRoute<PickedStationLocation>(
+        builder: (_) => StationLocationPickerScreen(
+          initial: _pickedLocation,
+        ),
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() => _pickedLocation = picked);
+    }
   }
 
   // ── Section C fields ────────────────────────────────────────────────────
