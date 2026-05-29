@@ -1,7 +1,4 @@
-import 'package:flutter/foundation.dart';
-
 import '../../core/result/data_state.dart';
-import '../../services/station_places_verification_service.dart';
 import 'package:chargix_production/models/booking_model.dart';
 import '../../models/enums/booking_status.dart';
 import '../../models/enums/station_status.dart';
@@ -9,7 +6,9 @@ import '../../models/operating_hours_model.dart';
 import '../../models/station_model.dart';
 import '../../models/station_registration_draft.dart';
 import '../../models/station_slot_model.dart';
+import '../../utils/slot_availability.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../core/firebase/firestore_paths.dart';
 import '../../models/station_owner_profile_model.dart';
@@ -66,11 +65,65 @@ class StationOwnerRepository {
 
   Future<DataState<void>> saveSlot(StationSlotModel slot) async {
     try {
+      debugPrint('[SlotUpdate] save slot=${slot.id} station=${slot.stationId} '
+          'open=${slot.isOpen} available=${slot.isAvailable}');
       await _slots.upsertSlot(slot, isCreate: true);
+      await syncPortCountsFromSlots(slot.stationId);
       return const DataSuccess(null);
     } catch (e, st) {
       return DataError(e, stackTrace: st);
     }
+  }
+
+  /// Writes [availablePorts] / [totalPorts] on the station doc from slot state.
+  Future<void> syncPortCountsFromSlots(String stationId) async {
+    final slotList = await _slots.watchSlots(stationId).first;
+    final stats = SlotAvailability.compute(slotList, logTag: 'SlotSync');
+    final current = await _stations.getStation(stationId);
+    if (current == null) {
+      debugPrint('[SlotSync] station $stationId not found — skip counter sync');
+      return;
+    }
+    if (current.availablePorts == stats.driverVisible &&
+        current.totalPorts == stats.total) {
+      return;
+    }
+    debugPrint(
+      '[SlotSync] station $stationId counters '
+      '${current.availablePorts}/${current.totalPorts} → '
+      '${stats.driverVisible}/${stats.total}',
+    );
+    await _stations.upsertStation(
+      StationModel(
+        id: current.id,
+        name: current.name,
+        address: current.address,
+        latitude: current.latitude,
+        longitude: current.longitude,
+        availablePorts: stats.driverVisible,
+        totalPorts: stats.total,
+        pricePerKwh: current.pricePerKwh,
+        rating: current.rating,
+        status: current.status,
+        amenities: current.amenities,
+        imageUrl: current.imageUrl,
+        operatorId: current.operatorId,
+        ownerUserId: current.ownerUserId,
+        description: current.description,
+        operatingHours: current.operatingHours,
+        shipmentBookingEnabled: current.shipmentBookingEnabled,
+        isPublic: current.isPublic,
+        city: current.city,
+        contactEmail: current.contactEmail,
+        contactPhone: current.contactPhone,
+        managerName: current.managerName,
+        managerNationalId: current.managerNationalId,
+        backupContactPhone: current.backupContactPhone,
+        logoUrl: current.logoUrl,
+        qrPayload: current.qrPayload,
+      ),
+      isCreate: false,
+    );
   }
 
   Future<DataState<void>> updateStationPricing({
@@ -119,55 +172,41 @@ class StationOwnerRepository {
     required BookingStatus status,
     String? rejectionReason,
   }) async {
-    return _bookingTx.respondToBooking(
+    final result = await _bookingTx.respondToBooking(
       booking: booking,
       newStatus: status,
       rejectionReason: rejectionReason,
     );
+    if (result is DataSuccess<void>) {
+      await syncPortCountsFromSlots(booking.stationId);
+    }
+    return result;
   }
 
-  /// Submits a new partner station for admin approval (`status: pending`).
+  /// Submits a new partner station (immediately active on map + dashboard).
   Future<DataState<String>> submitPartnerRegistration({
     required String ownerUserId,
     required StationRegistrationDraft draft,
   }) async {
     try {
       final stationId = ownerUserId;
-      final verification =
-          await StationPlacesVerificationService.instance.verifyAtCoordinates(
-        stationName: draft.stationName,
-        latitude: draft.latitude,
-        longitude: draft.longitude,
-        formattedAddress: draft.address,
-      );
-      final autoApproved = verification.isVerifiedOnGoogle;
-      if (kDebugMode) {
-        debugPrint(
-          'Chargix onboarding: Places verify autoApproved=$autoApproved',
-        );
-      }
-
-      final lat = verification.latitude ?? draft.latitude;
-      final lng = verification.longitude ?? draft.longitude;
 
       final station = StationModel(
         id: stationId,
         name: draft.stationName,
         address: draft.address,
-        latitude: lat,
-        longitude: lng,
-        availablePorts: autoApproved ? 1 : 0,
+        latitude: draft.latitude,
+        longitude: draft.longitude,
+        availablePorts: 1,
         totalPorts: 2,
         pricePerKwh: 0.42,
         rating: 0,
-        status: autoApproved ? StationStatus.approved : StationStatus.pending,
+        status: StationStatus.approved,
         ownerUserId: ownerUserId,
         operatorId: ownerUserId,
-        description: autoApproved
-            ? 'Verified via Google Maps listing'
-            : 'Awaiting Chargix approval',
+        description: 'Chargix partner station',
         operatingHours: draft.operatingHours,
-        isPublic: autoApproved,
+        isPublic: true,
         city: draft.city,
         contactEmail: draft.contactEmail,
         contactPhone: draft.contactPhone,

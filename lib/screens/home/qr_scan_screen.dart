@@ -5,7 +5,6 @@ import '../../data/chargix_data.dart';
 import '../../core/result/data_state.dart';
 import '../../theme/tokens/tokens.dart';
 import '../booking/book_slot_screen.dart';
-import '../stations/station_details_screen.dart';
 
 /// Scans Chargix station QR codes (`chargix://station/{id}`).
 class QrScanScreen extends StatefulWidget {
@@ -61,9 +60,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     final station = state.dataOrNull!;
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => station.status.isPublicOnMap
-            ? BookSlotScreen(station: station)
-            : StationDetailsScreen(partnerStation: station),
+        builder: (_) => BookSlotScreen(station: station),
       ),
     );
   }

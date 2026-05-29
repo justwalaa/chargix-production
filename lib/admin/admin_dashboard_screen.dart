@@ -90,7 +90,9 @@ class AdminDashboardScreen extends StatelessWidget {
                                     .collection('stations')
                                     .doc(docId)
                                     .update({
-                                  'status': 'publicOnMap',
+                                  'status': 'approved',
+                                  'isPublic': true,
+                                  'availablePorts': 1,
                                 });
                               },
                               child: const Text('Approve'),

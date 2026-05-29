@@ -188,7 +188,7 @@ class _SplashScreenState extends State<SplashScreen>
               // ── Ground glow beneath car ──────────────────────────────
               AnimatedBuilder(
                 animation: _glowPulse,
-                builder: (_, __) => Positioned(
+                builder: (_, _) => Positioned(
                   bottom: size.height * 0.28,
                   left: 0,
                   right: 0,
@@ -199,7 +199,7 @@ class _SplashScreenState extends State<SplashScreen>
               // ── Charging cable + bolt ─────────────────────────────────
               AnimatedBuilder(
                 animation: _glowPulse,
-                builder: (_, __) => Positioned(
+                builder: (_, _) => Positioned(
                   right: size.width * 0.08,
                   bottom: size.height * 0.30,
                   child: _ChargingBolt(intensity: _glowPulse.value),
@@ -215,7 +215,7 @@ class _SplashScreenState extends State<SplashScreen>
                     // Push logo into lower centre of screen
                     AnimatedBuilder(
                       animation: _logoController,
-                      builder: (_, __) => Opacity(
+                      builder: (_, _) => Opacity(
                         opacity: _logoOpacity.value,
                         child: Transform.scale(
                           scale: _logoScale.value,
@@ -226,7 +226,7 @@ class _SplashScreenState extends State<SplashScreen>
                     const SizedBox(height: 10),
                     AnimatedBuilder(
                       animation: _logoController,
-                      builder: (_, __) => Opacity(
+                      builder: (_, _) => Opacity(
                         opacity: _taglineOpacity.value,
                         child: const Text(
                           'CHARGE SMARTER. DRIVE FURTHER.',
@@ -251,7 +251,7 @@ class _SplashScreenState extends State<SplashScreen>
                 right: 36,
                 child: AnimatedBuilder(
                   animation: _loadProgress,
-                  builder: (_, __) =>
+                  builder: (_, _) =>
                       _LoadingBar(progress: _loadProgress.value),
                 ),
               ),
@@ -263,7 +263,7 @@ class _SplashScreenState extends State<SplashScreen>
                 right: 0,
                 child: AnimatedBuilder(
                   animation: _logoController,
-                  builder: (_, __) => Opacity(
+                  builder: (_, _) => Opacity(
                     opacity: _taglineOpacity.value,
                     child: const Text(
                       'v1.0.0',
@@ -378,7 +378,7 @@ class _AnimatedCar extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: xFraction,
-      builder: (_, __) {
+      builder: (_, _) {
         final dx = xFraction.value * size.width;
         return Positioned(
           bottom: size.height * 0.29,

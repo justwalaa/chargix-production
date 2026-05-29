@@ -1,12 +1,10 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/picked_station_location.dart';
-import '../../services/station_places_verification_service.dart';
 import 'station_location_picker_screen.dart';
 
 class StationRegisterScreen extends StatefulWidget {
@@ -107,22 +105,6 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
       final stationName = _stationNameController.text.trim();
       final location = _pickedLocation!;
 
-      final verification =
-          await StationPlacesVerificationService.instance.verifyAtCoordinates(
-        stationName: stationName,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        formattedAddress: location.formattedAddress,
-        googlePlaceId: location.googlePlaceId,
-      );
-      final autoApproved = verification.isVerifiedOnGoogle;
-      if (kDebugMode) {
-        debugPrint(
-          'Chargix register: Places verify autoApproved=$autoApproved '
-          'confidence=${verification.confidence}',
-        );
-      }
-
       // 2. Write user profile.
       // Matches the fields read by SessionGate.resolveHome() via UserModel:
       //   profile.role.isStation  → role field
@@ -149,32 +131,45 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
         'ownerPhoneE164': phoneE164,
         'name': stationName,
         'address': location.formattedAddress,
-        'status': autoApproved ? 'approved' : 'pending',
+        'status': 'approved',
         'ownerUserId': uid,
-        'isPublic': autoApproved,
+        'isPublic': true,
         'latitude': location.latitude,
         'longitude': location.longitude,
-        'googlePlaceId': verification.matchedPlaceId ?? location.googlePlaceId,
-        'placesVerification': {
-          'verified': autoApproved,
-          'confidence': verification.confidence,
-          'matchedName': verification.matchedName,
-          'reason': verification.reason,
-          'checkedAt': FieldValue.serverTimestamp(),
-        },
+        if (location.googlePlaceId != null)
+          'googlePlaceId': location.googlePlaceId,
         'chargersCount': int.tryParse(_chargerCountController.text) ?? 1,
         'connectorTypes': _connectorTypes.toList(),
         'powerKw': _powerKw,
-        'availablePorts': autoApproved ? 1 : 0,
+        'availablePorts': 1,
         'totalPorts': int.tryParse(_chargerCountController.text) ?? 1,
         'pricePerKwh': 0.42,
         'rating': 0,
         'createdAt': FieldValue.serverTimestamp(),
+
+
       });
 
-      // 4. Auth stream in app.dart handles navigation automatically —
-      //    SessionGate.resolveHome() → StationApprovalPendingScreen.
+      // Prevent auth race condition: sign out after registration, then return to login.
+      await FirebaseAuth.instance.signOut();
 
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF00D4FF),
+          content: Text(
+            'Station registered successfully. Please sign in.',
+            style: const TextStyle(color: Colors.black),
+          ),
+        ),
+      );
+
+      Navigator.of(context).pop();
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -319,7 +314,7 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
           const Expanded(
             child: Text(
               'Your station will be reviewed by our team after registration. '
-                  'You can complete pricing and booking details after approval.',
+                  'You can complete pricing and booking details in your dashboard.',
               style: TextStyle(
                 color: Color(0xFF5A7FA8),
                 fontSize: 13,
@@ -818,7 +813,7 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
     return const Center(
       child: Text(
         'By registering you agree to Chargix Terms of Service.\n'
-            'Station listing is subject to approval.',
+            'Your station appears on the map immediately after registration.',
         textAlign: TextAlign.center,
         style: TextStyle(color: Color(0xFF2E4060), fontSize: 11, height: 1.6),
       ),

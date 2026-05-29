@@ -1,9 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../services/auth_service.dart';
 import '../../theme/tokens/tokens.dart';
-import '../splash/splash_screen.dart';
 
+/// Shown when a partner station's application was rejected.
+///
+/// Signing out fires the ChargixApp auth listener which navigates to
+/// LoginScreen automatically — no manual navigation needed here.
 class StationRejectedScreen extends StatelessWidget {
   const StationRejectedScreen({super.key, required this.stationId});
 
@@ -18,33 +21,29 @@ class StationRejectedScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.cancel_outlined, size: 64, color: Colors.redAccent),
+            const Icon(
+              Icons.cancel_outlined,
+              size: 64,
+              color: Colors.redAccent,
+            ),
             const SizedBox(height: AppSpacing.lg),
             Text(
               'Registration not approved',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Your station application was reviewed and could not be approved '
-              'at this time. Contact support@chargix.app for details.',
+              'Your station application was reviewed and could not be '
+                  'approved at this time. Contact support@chargix.app for details.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const Spacer(),
             FilledButton(
               onPressed: () async {
-                await AuthService.instance.signOut();
-                if (!context.mounted) {
-                  return;
-                }
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const SplashScreen(),
-                  ),
-                  (_) => false,
-                );
+                // Sign out — ChargixApp auth listener navigates to LoginScreen.
+                await FirebaseAuth.instance.signOut();
               },
               child: const Text('Sign out'),
             ),

@@ -9,7 +9,8 @@ class PartnerMapData {
 
   final StationModel station;
 
-  bool get isApproved => station.status.isPublicOnMap;
+  bool get isApproved => true;
+
   bool get canBook =>
-      isApproved && station.availablePorts > 0 && station.shipmentBookingEnabled;
+      station.availablePorts > 0 && station.shipmentBookingEnabled;
 }

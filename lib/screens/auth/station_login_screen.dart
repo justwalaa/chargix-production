@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'reset_password_screen.dart';
 import 'station_register_screen.dart';
 
 class StationLoginScreen extends StatefulWidget {
@@ -59,25 +60,14 @@ class _StationLoginScreenState extends State<StationLoginScreen> {
     }
   }
 
-  Future<void> _forgotPassword() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      setState(() => _errorMessage = 'Enter your email first to reset password.');
-      return;
-    }
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Reset link sent to $email'),
-          backgroundColor: const Color(0xFF0A0F1C),
+  void _forgotPassword() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ResetPasswordScreen(
+          initialEmail: _emailController.text.trim(),
         ),
-      );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() => _errorMessage = _friendlyError(e));
-    }
+      ),
+    );
   }
 
   String _friendlyError(FirebaseAuthException e) {

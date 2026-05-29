@@ -8,6 +8,7 @@ import 'package:chargix_production/app.dart';
 import 'package:chargix_production/core/app_settings_controller.dart';
 import 'package:chargix_production/core/app_settings_scope.dart';
 import 'package:chargix_production/screens/splash/splash_screen.dart';
+import 'package:chargix_production/services/notification_service.dart';
 import 'package:chargix_production/theme/app_theme.dart';
 
 void main() async {
@@ -26,6 +27,7 @@ void main() async {
   );
 
   await Firebase.initializeApp();
+  await NotificationService.instance.initialize();
 
   runApp(const ChargixRoot());
 }

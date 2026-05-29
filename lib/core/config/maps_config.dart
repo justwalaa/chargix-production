@@ -1,12 +1,22 @@
-/// Google Maps / Places API key (same GCP project as Android Maps SDK).
+/// Google Maps / Places API key (must match Android/iOS Maps SDK key).
 ///
-/// Enable **Places API** in Google Cloud Console for nearby charger search.
+/// Enable **Places API** + **Maps SDK for Android** in Google Cloud Console.
 abstract final class MapsConfig {
-  static const String placesApiKey = 'AIzaSyC2xi5scAYDmxO5Vask7PvGt-lbx9VE81Y';
+  /// Same key as `android/app/src/main/AndroidManifest.xml` → `com.google.android.geo.API_KEY`.
+  static const String placesApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: 'AIzaSyAu_Fetxrs57m_ldC6axCrnBkUQXw9AC8M',
+  );
 
-  static const int nearbySearchRadiusMeters = 15000;
+  /// Amman, Jordan — map fallback when GPS unavailable.
+  static const double fallbackLatitude = 31.9539;
+  static const double fallbackLongitude = 35.9106;
+
+  static const int nearbySearchRadiusMeters = 25000;
   static const String nearbySearchType = 'electric_vehicle_charging_station';
 
   /// Google requires ~2s before using [next_page_token].
-  static const int maxPlacesPages = 2;
+  static const int maxPlacesPages = 3;
+
+  static const Duration placesAutocompleteDebounce = Duration(milliseconds: 350);
 }

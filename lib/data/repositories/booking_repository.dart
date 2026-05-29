@@ -5,6 +5,7 @@ import '../../models/enums/booking_status.dart';
 import '../firestore/booking_transaction_service.dart';
 import '../firestore/bookings_firestore_service.dart';
 import '../../models/station_slot_model.dart';
+import 'station_owner_repository.dart';
 
 class BookingRepository {
   BookingRepository({BookingsFirestoreService? service})
@@ -56,26 +57,38 @@ class BookingRepository {
     required DateTime scheduledStart,
     required DateTime scheduledEnd,
     String? vehicleId,
-  }) =>
-      _transactions.reserveSlot(
-        userId: userId,
-        station: station,
-        slot: slot,
-        scheduledStart: scheduledStart,
-        scheduledEnd: scheduledEnd,
-        vehicleId: vehicleId,
-      );
+  }) async {
+    final result = await _transactions.reserveSlot(
+      userId: userId,
+      station: station,
+      slot: slot,
+      scheduledStart: scheduledStart,
+      scheduledEnd: scheduledEnd,
+      vehicleId: vehicleId,
+    );
+    if (result is DataSuccess<BookingModel>) {
+      await StationOwnerRepository.instance.syncPortCountsFromSlots(station.id);
+    }
+    return result;
+  }
 
   Future<DataState<void>> respondToBookingAtomic({
     required BookingModel booking,
     required BookingStatus status,
     String? rejectionReason,
-  }) =>
-      _transactions.respondToBooking(
-        booking: booking,
-        newStatus: status,
-        rejectionReason: rejectionReason,
+  }) async {
+    final result = await _transactions.respondToBooking(
+      booking: booking,
+      newStatus: status,
+      rejectionReason: rejectionReason,
+    );
+    if (result is DataSuccess<void>) {
+      await StationOwnerRepository.instance.syncPortCountsFromSlots(
+        booking.stationId,
       );
+    }
+    return result;
+  }
 
   Future<DataState<void>> saveBooking(BookingModel booking) async {
     try {

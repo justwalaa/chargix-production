@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/notifications/booking_status_watcher.dart';
 import 'station_bookings_screen.dart';
 import 'station_dashboard_screen.dart';
 import 'station_slots_screen.dart';
@@ -30,33 +31,36 @@ class _StationMainNavigationState extends State<StationMainNavigation> {
       const SettingsScreen(),
     ];
 
-    return Scaffold(
-      body: IndexedStack(index: _index, children: screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard_rounded),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.inbox_outlined),
-            selectedIcon: Icon(Icons.inbox_rounded),
-            label: 'Bookings',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'Slots',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings_rounded),
-            label: 'Settings',
-          ),
-        ],
+    return BookingStatusWatcher(
+      stationId: widget.stationId,
+      child: Scaffold(
+        body: IndexedStack(index: _index, children: screens),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard_rounded),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.inbox_outlined),
+              selectedIcon: Icon(Icons.inbox_rounded),
+              label: 'Bookings',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.grid_view_outlined),
+              selectedIcon: Icon(Icons.grid_view_rounded),
+              label: 'Slots',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings_rounded),
+              label: 'Settings',
+            ),
+          ],
+        ),
       ),
     );
   }

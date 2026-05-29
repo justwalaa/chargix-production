@@ -9,7 +9,8 @@ import '../../data/chargix_data.dart';
 import '../../models/booking_model.dart';
 import '../../models/enums/booking_status.dart';
 import '../../models/map_station.dart';
-import '../../services/map_stations_services.dart';
+import '../../core/config/maps_config.dart';
+import '../../services/stations_map_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/tokens/tokens.dart';
 import '../../utils/geo_utils.dart';
@@ -50,31 +51,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _resolveLocation() async {
+    var lat = MapsConfig.fallbackLatitude;
+    var lng = MapsConfig.fallbackLongitude;
     try {
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
+      if (permission != LocationPermission.denied &&
+          permission != LocationPermission.deniedForever) {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+          ),
+        ).timeout(const Duration(seconds: 12));
+        lat = pos.latitude;
+        lng = pos.longitude;
+        if (mounted) {
+          setState(() {
+            _userLat = lat;
+            _userLng = lng;
+          });
+        }
       }
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 12),
-        ),
-      );
-      if (!mounted) return;
-      setState(() {
-        _userLat = pos.latitude;
-        _userLng = pos.longitude;
-      });
-      await MapStationsService.instance.load(
-        latitude: pos.latitude,
-        longitude: pos.longitude,
-      );
     } on Object catch (_) {}
+    await MapStationsService.instance.load(latitude: lat, longitude: lng);
   }
 
   void _onStations(List<MapStation> list) {
@@ -84,17 +85,17 @@ class _HomeScreenState extends State<HomeScreen> {
       stations = list
           .map(
             (s) => s.copyWith(
-              distanceKm: GeoUtils.distanceKm(
-                _userLat!,
-                _userLng!,
-                s.latitude,
-                s.longitude,
-              ),
-            ),
-          )
+          distanceKm: GeoUtils.distanceKm(
+            _userLat!,
+            _userLng!,
+            s.latitude,
+            s.longitude,
+          ),
+        ),
+      )
           .toList()
         ..sort(
-          (a, b) => (a.distanceKm ?? double.infinity)
+              (a, b) => (a.distanceKm ?? double.infinity)
               .compareTo(b.distanceKm ?? double.infinity),
         );
     }
@@ -103,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   MapStation? get _recommended {
     final partners =
-        _nearby.where((s) => s.isPartner && s.partner != null).toList();
+    _nearby.where((s) => s.isPartner && s.partner != null).toList();
     if (partners.isNotEmpty) return partners.first;
     if (_nearby.isNotEmpty) return _nearby.first;
     return null;
@@ -194,9 +195,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Quick actions',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                        ),
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Row(
@@ -257,16 +258,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Recommended charger',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   if (recommended == null)
                     Text(
                       'Locating stations… Open the map to explore chargers near you.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                      ),
                     )
                   else
                     _RecommendedCard(
@@ -292,8 +293,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Recent activity',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   _RecentBookingsSection(uid: user?.uid),
@@ -330,22 +331,22 @@ class _SummaryStatCard extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             value,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: accent,
-                ),
+              fontWeight: FontWeight.w800,
+              color: accent,
+            ),
           ),
           Text(
             subtitle,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -384,8 +385,8 @@ class _SessionStatusCard extends StatelessWidget {
                   child: Text(
                     'No active charging session. Book a port at a Chargix partner.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],
@@ -406,14 +407,14 @@ class _SessionStatusCard extends StatelessWidget {
                     Text(
                       'Upcoming / active booking',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     Text(
                       'Station ${booking.stationId}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -466,16 +467,16 @@ class _RecommendedCard extends StatelessWidget {
                 child: Text(
                   station.name,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
               Text(
                 dist,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -485,14 +486,14 @@ class _RecommendedCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+              color: scheme.onSurfaceVariant,
+            ),
           ),
           if (partner != null) ...[
             const SizedBox(height: 8),
             Text(
               '${partner.availablePorts}/${partner.totalPorts} ports · '
-              '${partner.pricePerKwh.toStringAsFixed(2)}/kWh',
+                  '${partner.pricePerKwh.toStringAsFixed(2)}/kWh',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -556,8 +557,8 @@ class _RecentBookingsSection extends StatelessWidget {
           return Text(
             'No bookings yet — reserve from the map or a partner station.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           );
         }
 
@@ -594,10 +595,10 @@ class _RecentBookingsSection extends StatelessWidget {
                           Text(
                             booking.status.value,
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),

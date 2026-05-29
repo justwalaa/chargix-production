@@ -279,7 +279,7 @@ class _PulsingDotState extends State<_PulsingDot>
       children: [
         AnimatedBuilder(
           animation: _pulse,
-          builder: (_, __) => Container(
+          builder: (_, _) => Container(
             width: widget.size * _pulse.value,
             height: widget.size * _pulse.value,
             decoration: BoxDecoration(

@@ -91,7 +91,7 @@ class FavoritesScreen extends StatelessWidget {
         for (final fav in favorites) {
           final state = await ChargixData.stations.getStation(fav.stationId);
           final station = state.dataOrNull;
-          if (station != null && station.status.isPublicOnMap) {
+          if (station != null) {
             stations.add(station);
           }
         }
