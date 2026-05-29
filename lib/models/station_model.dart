@@ -111,6 +111,10 @@ class StationModel {
     final geo = map['location'];
     double lat = FirestoreHelpers.requireDouble(map, 'latitude');
     double lng = FirestoreHelpers.requireDouble(map, 'longitude');
+    if (lat == 0 && lng == 0) {
+      lat = FirestoreHelpers.requireDouble(map, 'lat');
+      lng = FirestoreHelpers.requireDouble(map, 'lng');
+    }
     if (geo is GeoPoint) {
       lat = geo.latitude;
       lng = geo.longitude;
@@ -132,7 +136,8 @@ class StationModel {
       amenities: FirestoreHelpers.stringList(map, 'amenities'),
       imageUrl: FirestoreHelpers.optionalString(map, 'imageUrl'),
       operatorId: FirestoreHelpers.optionalString(map, 'operatorId'),
-      ownerUserId: FirestoreHelpers.optionalString(map, 'ownerUserId'),
+      ownerUserId: FirestoreHelpers.optionalString(map, 'ownerUserId') ??
+          FirestoreHelpers.optionalString(map, 'ownerId'),
       description: FirestoreHelpers.optionalString(map, 'description'),
       operatingHours: OperatingHoursModel.fromMap(
         map['operatingHours'] as Map<String, dynamic>?,

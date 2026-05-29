@@ -8,7 +8,6 @@ import '../../theme/tokens/tokens.dart';
 import '../../widgets/chargix/premium_card.dart';
 import '../../widgets/chargix/settings_tile.dart';
 import '../settings/settings_screen.dart';
-import '../station/station_main_navigation.dart';
 import 'charging_history_screen.dart';
 import 'charging_preferences_screen.dart';
 import 'favorites_screen.dart';
@@ -41,8 +40,6 @@ class ProfileScreen extends StatelessWidget {
           final profile = snapshot.data;
           final phone = profile?.phoneE164 ?? authUser?.phoneNumber ?? '—';
           final name = profile?.displayName ?? 'Chargix driver';
-          final isOwner = profile?.role.isStation == true;
-
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.screenGutter),
             children: [
@@ -153,27 +150,6 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isOwner) ...[
-                const SizedBox(height: AppSpacing.xl),
-                _sectionTitle(context, 'Station operator'),
-                const SizedBox(height: AppSpacing.sm),
-                PremiumCard(
-                  child: SettingsTile(
-                    icon: Icons.storefront_rounded,
-                    title: 'Station dashboard',
-                    subtitle: 'Manage slots, bookings, pricing',
-                    onTap: () {
-                      final stationId = profile?.stationId ?? uid;
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              StationMainNavigation(stationId: stationId),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
               if (authUser?.email == 'walaamarie363@gmail.com') ...[
                 const SizedBox(height: AppSpacing.xl),
 

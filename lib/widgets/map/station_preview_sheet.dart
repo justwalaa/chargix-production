@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 import '../../core/result/data_state.dart';
 import '../../data/chargix_data.dart';
 import '../../models/map_station.dart';
+import '../../models/station_model.dart';
+import '../../models/station_slot_model.dart';
 import '../../screens/booking/book_slot_screen.dart';
 import '../../theme/tokens/tokens.dart';
+import '../../utils/currency_format.dart';
 import '../../utils/geo_utils.dart';
 import '../../utils/map_directions.dart';
+import '../../utils/slot_availability.dart';
 import 'station_type_badge.dart';
 
 /// Bottom sheet for partner or external map stations.
@@ -36,7 +40,6 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
 
   MapStation get station => widget.station;
   bool get isPartner => station.isPartner;
-  bool get canBook => station.isBookable;
 
   @override
   void initState() {
@@ -102,6 +105,13 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
     );
   }
 
+  String _connectorSummary(List<StationSlotModel> slots) {
+    final open = slots.where((s) => s.isOpen).toList();
+    if (open.isEmpty) return 'No bays configured';
+    final types = open.map((s) => s.connectorType).toSet().toList();
+    return types.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -109,6 +119,51 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
     final partner = station.partner?.station;
     final external = station.external;
 
+    if (isPartner && partner != null) {
+      return StreamBuilder<List<StationSlotModel>>(
+        stream: ChargixData.stationOwner.watchSlots(partner.id),
+        builder: (context, slotSnap) {
+          final slots = slotSnap.data ?? const [];
+          final stats = SlotAvailability.compute(slots, logTag: 'Availability');
+          final canBookNow =
+              stats.driverVisible > 0 && partner.shipmentBookingEnabled;
+
+          return _buildContent(
+            context,
+            scheme: scheme,
+            textTheme: textTheme,
+            partner: partner,
+            external: external,
+            stats: stats,
+            connectorSummary: _connectorSummary(slots),
+            canBookNow: canBookNow,
+          );
+        },
+      );
+    }
+
+    return _buildContent(
+      context,
+      scheme: scheme,
+      textTheme: textTheme,
+      partner: partner,
+      external: external,
+      stats: SlotAvailabilityStats.empty,
+      connectorSummary: external?.chargerTypeHint ?? 'EV charging',
+      canBookNow: false,
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context, {
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required StationModel? partner,
+    required external,
+    required SlotAvailabilityStats stats,
+    required String connectorSummary,
+    required bool canBookNow,
+  }) {
     return ListView(
       controller: widget.scrollController,
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
@@ -171,39 +226,40 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
             children: [
               _InfoChip(
                 icon: Icons.ev_station_outlined,
-                label:
-                    '${partner.availablePorts}/${partner.totalPorts} available',
-                tone: partner.availablePorts > 0
+                label: '${stats.driverVisible}/${stats.total} available',
+                tone: stats.driverVisible > 0
                     ? scheme.primaryContainer
                     : scheme.errorContainer,
-                onTone: partner.availablePorts > 0
+                onTone: stats.driverVisible > 0
                     ? scheme.onPrimaryContainer
                     : scheme.onErrorContainer,
               ),
               _InfoChip(
                 icon: Icons.bolt_outlined,
-                label: '\$${partner.pricePerKwh.toStringAsFixed(2)}/kWh',
+                label: CurrencyFormat.perKwh(partner.pricePerKwh),
                 tone: scheme.secondaryContainer,
                 onTone: scheme.onSecondaryContainer,
               ),
               _InfoChip(
-                icon: Icons.star_rounded,
-                label: partner.rating.toStringAsFixed(1),
+                icon: Icons.power_outlined,
+                label: connectorSummary,
                 tone: scheme.surfaceContainerHighest,
                 onTone: scheme.onSurface,
               ),
             ],
           ),
           const SizedBox(height: 24),
-          if (canBook)
+          if (canBookNow)
             FilledButton.icon(
               onPressed: _openBooking,
-              icon: const Icon(Icons.calendar_month_rounded),
-              label: const Text('Book via Chargix'),
+              icon: const Icon(Icons.bolt_rounded),
+              label: const Text('Book now'),
             )
           else
             Text(
-              'No open ports right now. Check back soon or pick another hub.',
+              stats.total == 0
+                  ? 'No charger bays configured yet.'
+                  : 'No open bays right now. Check back soon.',
               style: textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -212,7 +268,7 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
           OutlinedButton.icon(
             onPressed: widget.onViewPartnerDetails,
             icon: const Icon(Icons.info_outline_rounded),
-            label: const Text('Partner station details'),
+            label: const Text('Station details'),
           ),
         ] else ...[
           _ExternalNetworkBanner(scheme: scheme, textTheme: textTheme),
@@ -238,23 +294,6 @@ class _StationPreviewSheetState extends State<StationPreviewSheet> {
               ],
             ),
           ],
-          const SizedBox(height: 12),
-          Text(
-            'Coordinates: ${station.latitude.toStringAsFixed(5)}, '
-            '${station.longitude.toStringAsFixed(5)}',
-            style: textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Live availability, booking, and queue features are only available '
-            'at Chargix partner stations (green markers on the map).',
-            style: textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-              height: 1.4,
-            ),
-          ),
         ],
         const SizedBox(height: AppSpacing.sm),
         FilledButton.tonalIcon(
@@ -297,7 +336,7 @@ class _ExternalNetworkBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Not on the Chargix network',
+            'Public charging location',
             style: textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w800,
               color: scheme.tertiary,
@@ -305,8 +344,8 @@ class _ExternalNetworkBanner extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'This location is from public map data. Navigate here for discovery — '
-            'book and track sessions only at verified Chargix partners.',
+            'From Google Maps. Use Directions to navigate. Booking is only '
+            'available at Chargix partner stations (green markers).',
             style: textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.35,

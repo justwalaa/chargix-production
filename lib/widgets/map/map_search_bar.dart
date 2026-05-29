@@ -8,12 +8,14 @@ class MapSearchBar extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onChanged,
+    this.focusNode,
     this.hintText = 'Search stations or places…',
     this.onClear,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final FocusNode? focusNode;
   final String hintText;
   final VoidCallback? onClear;
 
@@ -50,6 +52,7 @@ class _MapSearchBarState extends State<MapSearchBar> {
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.96),
       child: TextField(
         controller: widget.controller,
+        focusNode: widget.focusNode,
         onChanged: widget.onChanged,
         textInputAction: TextInputAction.search,
         style: Theme.of(context).textTheme.bodyMedium,

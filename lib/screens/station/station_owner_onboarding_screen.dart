@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-
 import '../../core/routing/session_gate.dart';
 import '../../core/result/data_state.dart';
 import '../../data/chargix_data.dart';
 import '../../models/operating_hours_model.dart';
+import '../../models/picked_station_location.dart';
 import '../../models/station_registration_draft.dart';
+import '../auth/station_location_picker_screen.dart';
 import '../../theme/app_gradients.dart';
 import '../../theme/tokens/tokens.dart';
 
@@ -45,8 +45,7 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
   final _backupCtrl = TextEditingController();
   final _logoUrlCtrl = TextEditingController();
 
-  double _lat = 31.9539;
-  double _lng = 35.9106;
+  PickedStationLocation? _pickedLocation;
 
   @override
   void dispose() {
@@ -66,29 +65,19 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
     super.dispose();
   }
 
-  Future<void> _useMyLocation() async {
-    try {
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-      setState(() {
-        _lat = pos.latitude;
-        _lng = pos.longitude;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location captured')),
-        );
+  Future<void> _pickLocation() async {
+    final picked = await Navigator.of(context).push<PickedStationLocation>(
+      MaterialPageRoute(
+        builder: (_) => StationLocationPickerScreen(initial: _pickedLocation),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _pickedLocation = picked;
+      if (_addressCtrl.text.trim().isEmpty) {
+        _addressCtrl.text = picked.formattedAddress;
       }
-    } on Object catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not read GPS location')),
-        );
-      }
-    }
+    });
   }
 
   void _next() {
@@ -111,14 +100,25 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
       return;
     }
     setState(() => _submitting = true);
+    if (_pickedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Set your station location on the map.')),
+      );
+      setState(() => _submitting = false);
+      return;
+    }
+
+    final loc = _pickedLocation!;
     final draft = StationRegistrationDraft(
       stationName: _stationNameCtrl.text.trim(),
       contactEmail: _emailCtrl.text.trim(),
       contactPhone: widget.phoneE164 ?? '',
       city: _cityCtrl.text.trim(),
-      address: _addressCtrl.text.trim(),
-      latitude: _lat,
-      longitude: _lng,
+      address: loc.formattedAddress.isNotEmpty
+          ? loc.formattedAddress
+          : _addressCtrl.text.trim(),
+      latitude: loc.latitude,
+      longitude: loc.longitude,
       operatingHours: OperatingHoursModel(
         openTime: _openCtrl.text.trim(),
         closeTime: _closeCtrl.text.trim(),
@@ -186,7 +186,7 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
                       width: 22,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(_step < 2 ? 'Continue' : 'Submit for approval'),
+                  : Text(_step < 2 ? 'Continue' : 'Create station'),
             ),
           ),
         ],
@@ -264,10 +264,21 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
         ),
         const SizedBox(height: AppSpacing.md),
         OutlinedButton.icon(
-          onPressed: _useMyLocation,
-          icon: const Icon(Icons.my_location_rounded),
-          label: Text('Use GPS ($_lat, $_lng)'),
+          onPressed: _pickLocation,
+          icon: const Icon(Icons.map_rounded),
+          label: Text(
+            _pickedLocation == null
+                ? 'Pick location on map *'
+                : 'Location set — tap to change',
+          ),
         ),
+        if (_pickedLocation != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            _pickedLocation!.formattedAddress,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
         Row(
           children: [
@@ -334,8 +345,8 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'After submission, your station stays hidden until Chargix approves it. '
-          'You will then appear as a partner on the map with booking enabled.',
+          'After submission you can manage bookings and appear on the map '
+          'as a Chargix partner (green marker).',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],

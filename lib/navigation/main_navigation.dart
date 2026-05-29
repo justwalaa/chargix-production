@@ -9,6 +9,7 @@ import 'package:chargix_production/core/navigation/main_tab_scope.dart';
 import 'package:chargix_production/screens/home/home_screen.dart';
 import 'package:chargix_production/screens/map/map_screen.dart';
 import 'package:chargix_production/screens/profile/profile_screen.dart';
+import 'package:chargix_production/core/notifications/booking_status_watcher.dart';
 import 'package:chargix_production/screens/booking/booking_screen.dart';
 import 'package:chargix_production/theme/app_colors.dart';
 
@@ -44,7 +45,8 @@ class _MainNavigationState extends State<MainNavigation> {
     final electric = Theme.of(context).colorScheme.primary;
     const inactive = AppColors.textMuted;
 
-    return MainTabScope(
+    return BookingStatusWatcher(
+      child: MainTabScope(
       goToTab: _goToTab,
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -59,6 +61,7 @@ class _MainNavigationState extends State<MainNavigation> {
           inactiveColor: inactive,
         ),
       ),
+    ),
     );
   }
 }

@@ -11,25 +11,34 @@ class StationRepository {
 
   final StationsFirestoreService _service;
 
-  /// True for live Chargix partner docs (excludes legacy demo/seed rows).
+  /// Chargix partner station eligible for the map (approval-independent).
   static bool isMapPartnerStation(StationModel station) {
     if (station.id.startsWith('demo-')) {
       return false;
     }
-    if (!station.isPublic || !station.status.isPublicOnMap) {
+    final ownerId = station.ownerUserId;
+    if (ownerId == null || ownerId.isEmpty) {
       return false;
     }
-    final ownerId = station.ownerUserId;
-    return ownerId != null && ownerId.isNotEmpty;
+    if (station.latitude == 0 && station.longitude == 0) {
+      return false;
+    }
+    if (station.latitude.isNaN ||
+        station.longitude.isNaN ||
+        station.latitude < -90 ||
+        station.latitude > 90) {
+      return false;
+    }
+    return true;
   }
 
   static List<StationModel> onlyMapPartners(List<StationModel> stations) {
     return stations.where(isMapPartnerStation).toList(growable: false);
   }
 
-  /// Approved Chargix partner stations only (map + stations list + booking).
+  /// Live Chargix partner stations for the map (all registered partners).
   Stream<List<StationModel>> watchMapPartnerStations() {
-    return _service.watchPublicStations().map(onlyMapPartners);
+    return _service.watchPartnerStationsForMap().map(onlyMapPartners);
   }
 
   Stream<List<StationModel>> watchActiveStations() => watchMapPartnerStations();
@@ -42,7 +51,7 @@ class StationRepository {
 
   Future<DataState<List<StationModel>>> fetchMapPartnerStations() async {
     try {
-      final all = await _service.getPublicStations();
+      final all = await _service.getPartnerStationsForMap();
       return DataSuccess(onlyMapPartners(all));
     } catch (e, st) {
       return DataError(e, stackTrace: st);

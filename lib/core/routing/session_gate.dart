@@ -9,15 +9,16 @@ import '../../models/station_model.dart';
 import '../../models/user_model.dart';
 import '../../navigation/main_navigation.dart';
 import '../../screens/auth/login_screen.dart';
-import '../../screens/station/station_approval_pending_screen.dart';
 import '../../screens/station/station_main_navigation.dart';
 import '../../screens/station/station_owner_onboarding_screen.dart';
-import '../../screens/station/station_rejected_screen.dart';
 import '../result/data_state.dart';
 
 /// Resolves the correct home shell after splash / login from Firestore profile.
 abstract final class SessionGate {
   static const Duration _bootstrapTimeout = Duration(seconds: 20);
+
+  static const int _maxRetries = 6;
+  static const Duration _retryBase = Duration(milliseconds: 600);
 
   static Future<Widget> resolveHome() async {
     try {
@@ -36,9 +37,11 @@ abstract final class SessionGate {
         return const LoginScreen();
       }
 
-      if (profile.role.isStation) {
+      if (await _isStationOperator(uid, profile)) {
         return await _resolveStationHome(uid: uid, profile: profile);
       }
+
+      debugPrint('Chargix SessionGate: driver → MainNavigation ($uid)');
       return const MainNavigation();
     } on TimeoutException catch (e, st) {
       debugPrint('Chargix SessionGate: bootstrap timed out: $e\n$st');
@@ -49,10 +52,34 @@ abstract final class SessionGate {
     }
   }
 
+  /// Station operators must never land on the driver shell.
+  static Future<bool> _isStationOperator(String uid, UserModel profile) async {
+    if (profile.role.isStation) {
+      return true;
+    }
+    final stationId = profile.stationId;
+    if (stationId != null && stationId.isNotEmpty) {
+      return true;
+    }
+
+    final owned = await ChargixData.stations.getStation(uid);
+    final station = owned.dataOrNull;
+    if (station != null) {
+      final ownerId = station.ownerUserId;
+      if (ownerId == uid || station.id == uid) {
+        debugPrint(
+          'Chargix SessionGate: station doc detected for $uid '
+          '(role=${profile.role.value})',
+        );
+        return true;
+      }
+    }
+    return false;
+  }
+
   static Future<UserModel?> _loadProfile(String uid) async {
-    final state = await ChargixData.users
-        .getUser(uid)
-        .timeout(_bootstrapTimeout);
+    final state =
+        await ChargixData.users.getUser(uid).timeout(_bootstrapTimeout);
     if (state is DataSuccess<UserModel>) {
       return state.data;
     }
@@ -62,54 +89,45 @@ abstract final class SessionGate {
     return null;
   }
 
-  /// Creates a minimal Firestore profile when Auth succeeded but `users/{uid}` is missing.
   static Future<UserModel?> _bootstrapProfile(User authUser) async {
     final uid = authUser.uid;
     final phone = (authUser.phoneNumber ?? '').trim();
     final email = (authUser.email ?? '').trim();
 
     if (phone.isEmpty && email.isEmpty) {
-      debugPrint(
-        'Chargix SessionGate: cannot bootstrap $uid — no phone or email on Auth user.',
-      );
       return null;
     }
 
-    // Station email/password accounts must already have a Firestore profile with
-    // a real phone from registration — never store email in phoneE164.
     if (phone.isEmpty && email.isNotEmpty) {
+      for (int attempt = 1; attempt <= _maxRetries; attempt++) {
+        await Future<void>.delayed(_retryBase * attempt);
+        final retry = await _loadProfile(uid);
+        if (retry != null) return retry;
+      }
+      return null;
+    }
+
+    if (phone.isEmpty) return null;
+
+    // Do not create a driver profile if this uid already owns a station.
+    final stationState = await ChargixData.stations.getStation(uid);
+    if (stationState.dataOrNull != null) {
       debugPrint(
-        'Chargix SessionGate: station auth without phone on Firebase user — '
-        'profile must exist in Firestore.',
+        'Chargix SessionGate: station doc exists for $uid — skip driver bootstrap',
       );
-      return null;
+      return _loadProfile(uid);
     }
-
-    if (phone.isEmpty) {
-      return null;
-    }
-
-    final role = UserRole.user;
-
-    debugPrint(
-      'Chargix SessionGate: bootstrapping driver profile for $uid.',
-    );
 
     final result = await ChargixData.users
         .ensureUserAfterSignIn(
           uid: uid,
           phoneE164: phone,
-          role: role,
+          role: UserRole.user,
         )
         .timeout(_bootstrapTimeout);
 
     if (result is DataSuccess<UserModel>) {
       return result.data;
-    }
-    if (result is DataError<UserModel>) {
-      debugPrint(
-        'Chargix SessionGate: ensureUserAfterSignIn failed: ${result.error}',
-      );
     }
     return null;
   }
@@ -119,35 +137,29 @@ abstract final class SessionGate {
     required UserModel profile,
   }) async {
     final stationId = profile.stationId ?? uid;
-    final stationState = await ChargixData.stations
-        .getStation(stationId)
-        .timeout(_bootstrapTimeout);
 
-    if (stationState is DataError<StationModel>) {
-      debugPrint(
-        'Chargix SessionGate: getStation($stationId) error: ${stationState.error}',
-      );
+    StationModel? station;
+    for (int attempt = 0; attempt <= _maxRetries; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(_retryBase * attempt);
+      }
+      final state = await ChargixData.stations
+          .getStation(stationId)
+          .timeout(_bootstrapTimeout);
+      station = state.dataOrNull;
+      if (station != null) break;
     }
 
-    final station = stationState.dataOrNull;
     if (station == null) {
       return StationOwnerOnboardingScreen(
         ownerUserId: uid,
         phoneE164: profile.phoneE164,
       );
     }
-    if (station.status.isPendingApproval) {
-      return StationApprovalPendingScreen(stationId: stationId);
-    }
-    if (station.status.isRejected) {
-      return StationRejectedScreen(stationId: stationId);
-    }
-    if (station.status.isPublicOnMap) {
-      return StationMainNavigation(stationId: stationId);
-    }
-    return StationOwnerOnboardingScreen(
-      ownerUserId: uid,
-      phoneE164: profile.phoneE164,
+
+    debugPrint(
+      'Chargix SessionGate: station operator → dashboard ($stationId)',
     );
+    return StationMainNavigation(stationId: stationId);
   }
 }

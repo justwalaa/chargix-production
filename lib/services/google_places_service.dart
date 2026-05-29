@@ -1,12 +1,27 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/config/maps_config.dart';
 import '../models/external_place_metadata.dart';
 import '../models/map_station.dart';
+import '../services/map/map_pipeline_logger.dart';
 import '../utils/geo_utils.dart';
+
+/// Autocomplete suggestion from Google Places.
+class PlaceAutocompletePrediction {
+  const PlaceAutocompletePrediction({
+    required this.placeId,
+    required this.description,
+    required this.mainText,
+    required this.secondaryText,
+  });
+
+  final String placeId;
+  final String description;
+  final String mainText;
+  final String secondaryText;
+}
 
 /// Geocoded coordinates for an address string.
 class GeocodedLocation {
@@ -73,16 +88,122 @@ class GooglePlacesService {
       ),
     );
 
+    absorb(
+      await searchChargingStationsByText(
+        query: 'electric vehicle charging station',
+        latitude: latitude,
+        longitude: longitude,
+        radiusMeters: radiusMeters,
+      ),
+    );
+
+    absorb(
+      await searchChargingStationsByText(
+        query: 'charging station',
+        latitude: latitude,
+        longitude: longitude,
+        radiusMeters: radiusMeters,
+      ),
+    );
+
     final list = byId.values.toList(growable: false);
     list.sort(
       (a, b) => (a.distanceKm ?? double.infinity)
           .compareTo(b.distanceKm ?? double.infinity),
     );
-    debugPrint(
-      'Chargix Places: ${list.length} external stations near '
-      '($latitude, $longitude)',
+    MapPipelineLogger.places(
+      '${list.length} external stations near ($latitude, $longitude)',
     );
+    if (list.isEmpty) {
+      MapPipelineLogger.places('empty response for nearby search');
+    }
     return list;
+  }
+
+  /// Address / place autocomplete (registration + map search assist).
+  Future<List<PlaceAutocompletePrediction>> fetchAutocomplete({
+    required String input,
+    double? latitude,
+    double? longitude,
+    int radiusMeters = 50000,
+  }) async {
+    final trimmed = input.trim();
+    if (trimmed.length < 2) return const [];
+
+    final params = <String, String>{
+      'input': trimmed,
+      'key': MapsConfig.placesApiKey,
+      'types': 'geocode|establishment',
+    };
+    if (latitude != null && longitude != null) {
+      params['location'] = '$latitude,$longitude';
+      params['radius'] = '$radiusMeters';
+    }
+
+    final uri = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/place/autocomplete/json',
+      params,
+    );
+
+    final body = await _getJson(uri, context: 'autocomplete');
+    if (body == null) {
+      MapPipelineLogger.places('autocomplete empty/failed for "$trimmed"');
+      return const [];
+    }
+
+    final predictions = body['predictions'] as List<dynamic>? ?? [];
+    if (predictions.isEmpty) {
+      MapPipelineLogger.places('autocomplete zero results for "$trimmed"');
+    }
+
+    return predictions
+        .whereType<Map<String, dynamic>>()
+        .map((p) {
+          final structured = p['structured_formatting'] as Map<String, dynamic>?;
+          return PlaceAutocompletePrediction(
+            placeId: p['place_id'] as String? ?? '',
+            description: p['description'] as String? ?? '',
+            mainText: structured?['main_text'] as String? ?? '',
+            secondaryText: structured?['secondary_text'] as String? ?? '',
+          );
+        })
+        .where((p) => p.placeId.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  /// Resolves a place id to coordinates + formatted address.
+  Future<GeocodedLocation?> fetchPlaceDetails(String placeId) async {
+    final uri = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/place/details/json',
+      {
+        'place_id': placeId,
+        'fields': 'geometry,formatted_address,place_id,name',
+        'key': MapsConfig.placesApiKey,
+      },
+    );
+
+    final body = await _getJson(uri, context: 'place_details');
+    if (body == null) return null;
+
+    final result = body['result'] as Map<String, dynamic>?;
+    if (result == null) return null;
+
+    final geometry = result['geometry'] as Map<String, dynamic>?;
+    final location = geometry?['location'] as Map<String, dynamic>?;
+    final lat = (location?['lat'] as num?)?.toDouble();
+    final lng = (location?['lng'] as num?)?.toDouble();
+    if (lat == null || lng == null) return null;
+
+    return GeocodedLocation(
+      latitude: lat,
+      longitude: lng,
+      formattedAddress: result['formatted_address'] as String? ??
+          result['name'] as String? ??
+          '$lat, $lng',
+      placeId: result['place_id'] as String? ?? placeId,
+    );
   }
 
   Future<List<MapStation>> searchChargingStationsByText({
@@ -109,19 +230,7 @@ class GooglePlacesService {
     final stations = <MapStation>[];
     for (final raw in results) {
       if (raw is! Map<String, dynamic>) continue;
-      final types = (raw['types'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [];
-      final isCharging = types.contains('electric_vehicle_charging_station') ||
-          types.contains('gas_station') ||
-          query.toLowerCase().contains('charg');
-      if (!isCharging && types.isNotEmpty) {
-        final name = (raw['name'] as String? ?? '').toLowerCase();
-        if (!name.contains('charg') && !name.contains('ev')) {
-          continue;
-        }
-      }
+      if (!_isEvChargingPlace(raw)) continue;
       final station = _parsePlace(raw, latitude, longitude);
       if (station != null) stations.add(station);
     }
@@ -244,8 +353,13 @@ class GooglePlacesService {
       final results = body['results'] as List<dynamic>? ?? [];
       for (final raw in results) {
         if (raw is! Map<String, dynamic>) continue;
-        final station = _parsePlace(raw, latitude, longitude);
-        if (station != null) all.add(station);
+        final isTypedEvSearch = type == MapsConfig.nearbySearchType;
+        if (isTypedEvSearch ||
+            keyword != null ||
+            _isEvChargingPlace(raw)) {
+          final station = _parsePlace(raw, latitude, longitude);
+          if (station != null) all.add(station);
+        }
       }
 
       pageToken = body['next_page_token'] as String?;
@@ -260,26 +374,49 @@ class GooglePlacesService {
       final response =
           await _client.get(uri).timeout(const Duration(seconds: 18));
       if (response.statusCode != 200) {
-        debugPrint(
-          'Chargix Places $context: HTTP ${response.statusCode}',
+        MapPipelineLogger.places(
+          '$context HTTP ${response.statusCode}',
         );
         return null;
       }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final status = body['status'] as String? ?? '';
-      if (status != 'OK' && status != 'ZERO_RESULTS') {
-        debugPrint(
-          'Chargix Places $context: $status '
-          '${body['error_message'] ?? ''}',
+      if (status == 'ZERO_RESULTS') {
+        MapPipelineLogger.places('$context ZERO_RESULTS');
+        return body;
+      }
+      if (status != 'OK') {
+        MapPipelineLogger.places(
+          '$context API failure: $status ${body['error_message'] ?? ''}',
         );
         return null;
       }
       return body;
     } on Object catch (e) {
-      debugPrint('Chargix Places $context failed: $e');
+      MapPipelineLogger.places('$context failed: $e');
       return null;
     }
+  }
+
+  bool _isEvChargingPlace(Map<String, dynamic> place) {
+    final types = (place['types'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
+    if (types.contains('electric_vehicle_charging_station')) {
+      return true;
+    }
+    final name = (place['name'] as String? ?? '').toLowerCase();
+    if (name.contains('charg') ||
+        name.contains('charging') ||
+        name.contains('supercharger') ||
+        name.contains('ev ') ||
+        name.startsWith('ev ') ||
+        name.endsWith(' ev')) {
+      return true;
+    }
+    return false;
   }
 
   MapStation? _parsePlace(

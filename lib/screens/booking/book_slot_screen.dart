@@ -9,6 +9,7 @@ import '../../models/station_model.dart';
 import '../../models/station_slot_model.dart';
 import '../../theme/tokens/tokens.dart';
 import '../../widgets/chargix/firebase_stream_view.dart';
+import '../../utils/slot_availability.dart';
 import '../../widgets/chargix/premium_card.dart';
 import '../../widgets/map/station_type_badge.dart';
 import '../../models/map_station.dart';
@@ -161,8 +162,10 @@ MapStation get _mapStation => MapStation.partner(
                   emptyTitle: 'No bays configured',
                   emptyMessage: 'Station operator must add slots first.',
                   builder: (context, slots) {
-                    final available =
-                        slots.where((s) => s.isAvailable).toList();
+                    final available = slots
+                        .where((s) => s.isOpen && s.isAvailable)
+                        .toList();
+                    SlotAvailability.logDriverSlots(slots, station.id);
                     if (available.isEmpty) {
                       return const Text('All bays are currently reserved.');
                     }

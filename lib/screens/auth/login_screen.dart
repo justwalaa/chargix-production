@@ -1,10 +1,7 @@
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'otp_screen.dart';
 import 'station_login_screen.dart';
 
@@ -35,7 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
 
-
     final navigator = Navigator.of(context);
 
     setState(() {
@@ -43,22 +39,21 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    final phoneE164 =
-        '$_countryCode${_phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '')}';
+    final rawDigits =
+    _phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    final phoneE164 = '$_countryCode$rawDigits';
 
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: phoneE164,
       timeout: const Duration(seconds: 120),
 
-      // Auto-verified (Android instant verification — rare).
-      // SessionGate handles post-auth routing via the StreamSubscription
-      // in app.dart — no manual navigation needed here.
+      // Auto-verified on Android (rare). ChargixApp auth listener handles
+      // post-auth routing — no manual navigation needed here.
       verificationCompleted: (PhoneAuthCredential credential) async {
         await FirebaseAuth.instance.signInWithCredential(credential);
       },
 
       verificationFailed: (FirebaseAuthException e) {
-        // ✅ FIX: mounted check — this fires after async gap.
         if (!mounted) return;
         setState(() {
           _isLoading = false;
@@ -66,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       },
 
-      // ✅ FIX: Use pre-captured navigator, not context.
+      // Use pre-captured navigator to avoid stale context after async gap.
       codeSent: (String verificationId, int? resendToken) {
         if (!mounted) return;
         setState(() => _isLoading = false);
@@ -81,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
       },
 
       codeAutoRetrievalTimeout: (String verificationId) {
-        // Silent — the OTP screen timer handles expiry UI.
+        // Silent — OTP screen timer handles expiry UI.
       },
     );
   }
@@ -139,7 +134,6 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Electric bolt icon as brand mark
         Container(
           width: 52,
           height: 52,
@@ -198,7 +192,6 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              // Country code selector
               GestureDetector(
                 onTap: _showCountryCodePicker,
                 child: Container(
@@ -249,7 +242,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   decoration: const InputDecoration(
                     hintText: '7X XXX XXXX',
-                    hintStyle: TextStyle(color: Color(0xFF2E4060), letterSpacing: 1),
+                    hintStyle:
+                    TextStyle(color: Color(0xFF2E4060), letterSpacing: 1),
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
@@ -278,7 +272,8 @@ class _LoginScreenState extends State<LoginScreen> {
         width: 20,
         child: CircularProgressIndicator(
           strokeWidth: 2.5,
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF080B14)),
+          valueColor:
+          AlwaysStoppedAnimation<Color>(Color(0xFF080B14)),
         ),
       )
           : const Text('Send verification code'),
@@ -318,9 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(
-          child: Divider(color: const Color(0xFF1A2840), height: 1),
-        ),
+        const Expanded(child: Divider(color: Color(0xFF1A2840), height: 1)),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
@@ -328,9 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
             style: TextStyle(color: Color(0xFF2E4060), fontSize: 12),
           ),
         ),
-        Expanded(
-          child: Divider(color: const Color(0xFF1A2840), height: 1),
-        ),
+        const Expanded(child: Divider(color: Color(0xFF1A2840), height: 1)),
       ],
     );
   }
@@ -360,7 +351,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showCountryCodePicker() {
-    // Simple picker — extend with a full country list package if needed.
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF0A0F1C),
@@ -390,19 +380,21 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            ...codes.map((c) => ListTile(
-              title: Text(
-                '${c.$2}  ${c.$1}',
-                style: const TextStyle(
-                  color: Color(0xFFEEF4FF),
-                  fontSize: 14,
+            ...codes.map(
+                  (c) => ListTile(
+                title: Text(
+                  '${c.$2}  ${c.$1}',
+                  style: const TextStyle(
+                    color: Color(0xFFEEF4FF),
+                    fontSize: 14,
+                  ),
                 ),
+                onTap: () {
+                  setState(() => _countryCode = c.$1);
+                  Navigator.pop(context);
+                },
               ),
-              onTap: () {
-                setState(() => _countryCode = c.$1);
-                Navigator.pop(context);
-              },
-            )),
+            ),
             const SizedBox(height: 16),
           ],
         );

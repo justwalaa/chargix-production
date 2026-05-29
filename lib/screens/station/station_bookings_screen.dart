@@ -86,6 +86,36 @@ class StationBookingsScreen extends StatelessWidget {
                         ],
                       ),
                     ],
+                    if (b.status == BookingStatus.approved) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => _respond(
+                            context,
+                            b,
+                            BookingStatus.active,
+                          ),
+                          icon: const Icon(Icons.bolt_rounded),
+                          label: const Text('Start session'),
+                        ),
+                      ),
+                    ],
+                    if (b.status == BookingStatus.active) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => _respond(
+                            context,
+                            b,
+                            BookingStatus.completed,
+                          ),
+                          icon: const Icon(Icons.check_circle_outline),
+                          label: const Text('Mark completed'),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
@@ -125,9 +155,19 @@ class StationBookingsScreen extends StatelessWidget {
       return;
     }
     final ok = result.isSuccess;
+    final message = !ok
+        ? 'Update failed'
+        : switch (status) {
+            BookingStatus.approved || BookingStatus.confirmed =>
+              'Booking confirmed — driver notified',
+            BookingStatus.rejected => 'Booking rejected — driver notified',
+            BookingStatus.active => 'Charging session started',
+            BookingStatus.completed => 'Session marked complete',
+            _ => 'Booking updated',
+          };
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? 'Booking updated' : 'Update failed'),
+        content: Text(message),
         behavior: SnackBarBehavior.floating,
       ),
     );

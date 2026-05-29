@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:chargix_production/models/booking_model.dart';
+import '../../data/chargix_data.dart';
 import '../../models/enums/booking_status.dart';
 import '../../theme/tokens/tokens.dart';
 import '../../widgets/chargix/premium_card.dart';
 
-class BookingDetailsScreen extends StatelessWidget {
+class BookingDetailsScreen extends StatefulWidget {
   const BookingDetailsScreen({
     super.key,
     required this.booking,
@@ -13,6 +14,65 @@ class BookingDetailsScreen extends StatelessWidget {
 
   final BookingModel booking;
   final String? stationName;
+
+  @override
+  State<BookingDetailsScreen> createState() => _BookingDetailsScreenState();
+}
+
+class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
+  bool _cancelling = false;
+
+  BookingModel get booking => widget.booking;
+
+  bool get _canCancel =>
+      booking.status == BookingStatus.pending ||
+      booking.status == BookingStatus.approved;
+
+  Future<void> _cancelBooking() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel booking?'),
+        content: const Text(
+          'This releases your reserved charger bay at the station.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancel booking'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _cancelling = true);
+    final result = await ChargixData.bookings.respondToBookingAtomic(
+      booking: booking,
+      status: BookingStatus.cancelled,
+      rejectionReason: 'Cancelled by driver',
+    );
+    if (!mounted) return;
+    setState(() => _cancelling = false);
+
+    if (result.isSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Booking cancelled'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${result.errorOrNull}')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +92,7 @@ class BookingDetailsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  stationName ?? 'Station ${booking.stationId}',
+                  widget.stationName ?? 'Station ${booking.stationId}',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -83,6 +143,20 @@ class BookingDetailsScreen extends StatelessWidget {
               ),
             ),
           ],
+          if (_canCancel) ...[
+            const SizedBox(height: AppSpacing.xl),
+            OutlinedButton.icon(
+              onPressed: _cancelling ? null : _cancelBooking,
+              icon: _cancelling
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.cancel_outlined),
+              label: Text(_cancelling ? 'Cancelling…' : 'Cancel booking'),
+            ),
+          ],
         ],
       ),
     );
@@ -94,8 +168,20 @@ String _pad(int n) => n.toString().padLeft(2, '0');
 String _weekday(int w) =>
     const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][w - 1];
 
-String _month(int m) =>
-    const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1];
+String _month(int m) => const [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ][m - 1];
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status});

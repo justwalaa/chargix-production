@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../data/chargix_data.dart';
 import '../../models/station_model.dart';
+import '../../models/station_slot_model.dart';
 import '../../theme/tokens/tokens.dart';
+import '../../utils/currency_format.dart';
+import '../../utils/slot_availability.dart';
 import '../../widgets/chargix/firebase_stream_view.dart';
 import '../../widgets/chargix/hero_header.dart';
 import '../../widgets/chargix/premium_card.dart';
@@ -27,166 +30,162 @@ class StationDashboardScreen extends StatelessWidget {
           if (station == null) {
             return const SizedBox.shrink();
           }
-          return ListView(
-            padding: const EdgeInsets.all(AppSpacing.screenGutter),
-            children: [
-              if (!station.status.isPublicOnMap)
-                PremiumCard(
-                  child: Row(
+          return StreamBuilder<List<StationSlotModel>>(
+            stream: ChargixData.stationOwner.watchSlots(stationId),
+            builder: (context, slotSnap) {
+              final slots = slotSnap.data ?? const [];
+              final stats = SlotAvailability.compute(slots);
+
+              return ListView(
+                padding: const EdgeInsets.all(AppSpacing.screenGutter),
+                children: [
+                  HeroHeader(
+                    title: station.name,
+                    subtitle: station.address,
+                    icon: Icons.storefront_rounded,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Row(
                     children: [
-                      Icon(
-                        Icons.hourglass_top_rounded,
-                        color: Theme.of(context).colorScheme.primary,
+                      Expanded(
+                        child: _MetricCard(
+                          label: 'Available bays',
+                          value: '${stats.driverVisible}/${stats.total}',
+                          icon: Icons.ev_station_rounded,
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
-                        child: Text(
-                          station.status.isPendingApproval
-                              ? 'Pending approval — not visible on the public map yet.'
-                              : 'Station not live. Contact Chargix support.',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                        child: _MetricCard(
+                          label: 'Price / kWh',
+                          value: CurrencyFormat.perKwh(station.pricePerKwh),
+                          icon: Icons.payments_outlined,
                         ),
                       ),
                     ],
                   ),
-                ),
-              if (!station.status.isPublicOnMap)
-                const SizedBox(height: AppSpacing.md),
-              HeroHeader(
-                title: station.name,
-                subtitle: station.address,
-                icon: Icons.storefront_rounded,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'Open ports',
-                      value: '${station.availablePorts}/${station.totalPorts}',
-                      icon: Icons.ev_station_rounded,
+                  if (stats.total > 0) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      '${stats.open} open · ${stats.booked} occupied · '
+                      '${stats.total - stats.open} closed',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.xl),
+                  Text(
+                    'Operations',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  PremiumCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        SettingsTile(
+                          icon: Icons.inbox_rounded,
+                          title: 'Booking approvals',
+                          subtitle: 'Reservations & rejections',
+                          onTap: () {
+                            Navigator.of(context).push<void>(
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    StationBookingsScreen(stationId: stationId),
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1),
+                        SettingsTile(
+                          icon: Icons.grid_view_rounded,
+                          title: 'Slot management',
+                          subtitle: 'Ports, pricing, availability',
+                          onTap: () {
+                            Navigator.of(context).push<void>(
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    StationSlotsScreen(stationId: stationId),
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1),
+                        SettingsTile(
+                          icon: Icons.directions_bus_rounded,
+                          title: 'Fleet & buses',
+                          subtitle: 'Post-approval module',
+                          onTap: () => _comingSoon(context, 'Fleet management'),
+                        ),
+                        const Divider(height: 1),
+                        SettingsTile(
+                          icon: Icons.route_rounded,
+                          title: 'Trips & schedules',
+                          subtitle: 'Post-approval module',
+                          onTap: () => _comingSoon(context, 'Trip planning'),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'Price / kWh',
-                      value: '\$${station.pricePerKwh.toStringAsFixed(2)}',
-                      icon: Icons.payments_outlined,
+                  const SizedBox(height: AppSpacing.xl),
+                  Text(
+                    'Insights',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  PremiumCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        SettingsTile(
+                          icon: Icons.history_rounded,
+                          title: 'Booking history',
+                          onTap: () {
+                            Navigator.of(context).push<void>(
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    StationBookingsScreen(stationId: stationId),
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1),
+                        SettingsTile(
+                          icon: Icons.insights_rounded,
+                          title: 'Earnings & statistics',
+                          subtitle: 'Available after go-live',
+                          onTap: () =>
+                              _comingSoon(context, 'Earnings dashboard'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  PremiumCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Operating hours',
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          '${station.operatingHours.openTime} – ${station.operatingHours.closeTime} (${station.operatingHours.timezone})',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Text(
-                'Operations',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              PremiumCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    SettingsTile(
-                      icon: Icons.inbox_rounded,
-                      title: 'Booking approvals',
-                      subtitle: 'Reservations & rejections',
-                      onTap: () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                StationBookingsScreen(stationId: stationId),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(height: 1),
-                    SettingsTile(
-                      icon: Icons.grid_view_rounded,
-                      title: 'Slot management',
-                      subtitle: 'Ports, pricing, availability',
-                      onTap: () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                StationSlotsScreen(stationId: stationId),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(height: 1),
-                    SettingsTile(
-                      icon: Icons.directions_bus_rounded,
-                      title: 'Fleet & buses',
-                      subtitle: 'Post-approval module',
-                      onTap: () => _comingSoon(context, 'Fleet management'),
-                    ),
-                    const Divider(height: 1),
-                    SettingsTile(
-                      icon: Icons.route_rounded,
-                      title: 'Trips & schedules',
-                      subtitle: 'Post-approval module',
-                      onTap: () => _comingSoon(context, 'Trip planning'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Text(
-                'Insights',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              PremiumCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    SettingsTile(
-                      icon: Icons.history_rounded,
-                      title: 'Booking history',
-                      onTap: () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                StationBookingsScreen(stationId: stationId),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(height: 1),
-                    SettingsTile(
-                      icon: Icons.insights_rounded,
-                      title: 'Earnings & statistics',
-                      subtitle: 'Available after go-live',
-                      onTap: () => _comingSoon(context, 'Earnings dashboard'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              PremiumCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Operating hours',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      '${station.operatingHours.openTime} – ${station.operatingHours.closeTime} (${station.operatingHours.timezone})',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              );
+            },
           );
         },
       ),
@@ -196,7 +195,7 @@ class StationDashboardScreen extends StatelessWidget {
   void _comingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature unlocks after station approval.'),
+        content: Text('$feature coming soon.'),
         behavior: SnackBarBehavior.floating,
       ),
     );

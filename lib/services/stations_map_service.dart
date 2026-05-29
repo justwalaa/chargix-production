@@ -1,194 +1,237 @@
-// lib/services/map/stations_map_service.dart
-//
-// Single service that provides ALL visible stations for the map:
-//   • Chargix partner stations (green)  — from Firestore
-//   • External/public EV stations (blue) — from Google Places
-//
-// Both lists are validated (no ocean/null coords), deduplicated by proximity,
-// distance-sorted, and returned as a unified List<MapStation>.
+import 'dart:async';
 
-import 'dart:developer' as dev;
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import '../../models/map_station_model.dart';
-import 'places_service.dart';
+import '../core/config/maps_config.dart';
+import '../core/result/data_state.dart';
+import '../data/chargix_data.dart';
+import '../models/map_station.dart';
+import '../models/station_model.dart';
+import '../utils/geo_utils.dart';
+import '../utils/map_station_search.dart';
+import 'google_places_service.dart';
+import 'map/map_pipeline.dart';
+import 'map/map_pipeline_logger.dart';
 
-class StationsMapService {
-  StationsMapService._();
-  static final StationsMapService instance = StationsMapService._();
+/// Loads partner (Firestore) + external (Google Places) stations for the map.
+class MapStationsService {
+  MapStationsService._();
 
-  final _firestore = FirebaseFirestore.instance;
+  static final MapStationsService instance = MapStationsService._();
 
-  // ── Public API ─────────────────────────────────────────────────────────────
+  final _controller = StreamController<List<MapStation>>.broadcast();
+  List<MapStation> _latest = const [];
+  LatLng? _lastCenter;
+  List<StationModel> _latestPartners = const [];
+  List<MapStation> _cachedExternal = const [];
+  bool _placesLoadedOnce = false;
+  StreamSubscription<List<StationModel>>? _partnerSub;
+  bool _loadingPlaces = false;
+  int _loadGeneration = 0;
 
-  /// Returns all visible stations around [center] within [radiusMeters].
-  ///
-  /// - Partner stations fetched from Firestore (no radius limit — all approved)
-  /// - External stations fetched from Places API
-  /// - Both validated, deduplicated (proximity 50m), distance-sorted
-  Future<StationsMapResult> fetchAllStations({
-    required LatLng center,
-    double radiusMeters = 8000,
-  }) async {
-    dev.log('[StationsMap] Fetching around '
-        '${center.latitude.toStringAsFixed(4)}, '
-        '${center.longitude.toStringAsFixed(4)} '
-        'r=${radiusMeters.round()}m',
-        name: 'StationsMapService');
+  Stream<List<MapStation>> get stationsStream async* {
+    if (_latest.isNotEmpty) {
+      yield _latest;
+    }
+    yield* _controller.stream;
+  }
 
-    // Run both fetches concurrently
-    final results = await Future.wait([
-      _fetchChargixStations(center),
-      PlacesService.instance.fetchNearbyEVStations(
-        center:       center,
-        radiusMeters: radiusMeters,
-      ),
-    ]);
-
-    final chargixStations  = results[0] as List<MapStation>;
-    final externalStations = results[1] as List<MapStation>;
-
-    dev.log('[StationsMap] Chargix: ${chargixStations.length}, '
-        'External: ${externalStations.length}',
-        name: 'StationsMapService');
-
-    // Deduplicate: remove external stations that are within 50m of a Chargix
-    // station (they're the same physical location, prefer the Chargix entry).
-    final deduped = _deduplicateExternal(chargixStations, externalStations);
-
-    dev.log('[StationsMap] After dedup: ${deduped.length} external kept',
-        name: 'StationsMapService');
-
-    // Compute distances and sort
-    final all = [
-      ...chargixStations,
-      ...deduped,
-    ];
-
-    final withDistance = all
-        .map((s) => s.withDistance(
-      CoordValidator.haversineKm(center, s.position),
-    ))
-        .toList()
-      ..sort((a, b) =>
-          (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999));
-
-    dev.log('[StationsMap] Total stations returned: ${withDistance.length}',
-        name: 'StationsMapService');
-
-    return StationsMapResult(
-      all:      withDistance,
-      chargix:  withDistance.where((s) => s.isChargix).toList(),
-      external: withDistance.where((s) => s.isExternal).toList(),
+  /// Live Firestore partner updates merged with last Places fetch.
+  void startPartnerWatch() {
+    _partnerSub?.cancel();
+    _partnerSub = ChargixData.stations.watchMapPartnerStations().listen(
+      (partners) {
+        MapPipelineLogger.firestore(
+          'watch update partners=${partners.length}',
+        );
+        _latestPartners = partners;
+        unawaited(_emitMerged(center: _lastCenter));
+      },
+      onError: (Object e, StackTrace st) {
+        MapPipelineLogger.firestore('watch error: $e\n$st');
+      },
     );
   }
 
-  // ── Firestore: partner stations ────────────────────────────────────────────
+  Future<void> load({
+    required double latitude,
+    required double longitude,
+    double? radiusMeters,
+  }) async {
+    final generation = ++_loadGeneration;
+    _lastCenter = LatLng(latitude, longitude);
 
-  Future<List<MapStation>> _fetchChargixStations(LatLng center) async {
+    final radius = (radiusMeters ?? MapsConfig.nearbySearchRadiusMeters).round();
+    MapPipelineLogger.pipeline(
+      'load @ ($latitude, $longitude) r=${radius}m gen=$generation',
+    );
+
+    final partnersFuture = ChargixData.stations.fetchMapPartnerStations();
+    final externalFuture =
+        GooglePlacesService.instance.fetchNearbyChargingStations(
+      latitude: latitude,
+      longitude: longitude,
+      radiusMeters: radius,
+    );
+
+    final partnersResult = await partnersFuture;
+    if (generation != _loadGeneration) {
+      MapPipelineLogger.pipeline('load gen=$generation superseded — skip');
+      return;
+    }
+
+    final partners = partnersResult.dataOrNull ?? const [];
+    if (partnersResult is DataError<List<StationModel>>) {
+      MapPipelineLogger.firestore(
+        'fetch error: ${partnersResult.errorOrNull}',
+      );
+    } else {
+      _latestPartners = partners;
+      MapPipelineLogger.firestore('fetch ok count=${partners.length}');
+    }
+
+    List<MapStation> external = const [];
     try {
-      // Fetch all approved/active Chargix stations
-      // Status values: 'approved', 'active', 'publicOnMap', 'public_on_map'
-      final snapshot = await _firestore
-          .collection('stations')
-          .where('status', whereIn: [
-        'approved',
-        'active',
-        'publicOnMap',
-        'public_on_map',
-        'available',
-      ])
-          .get();
+      external = await externalFuture;
+    } on Object catch (e, st) {
+      MapPipelineLogger.places('fetch failed: $e\n$st');
+    }
 
-      dev.log('[StationsMap] Firestore returned ${snapshot.docs.length} stations',
-          name: 'StationsMapService');
+    if (generation != _loadGeneration) return;
 
-      final valid = <MapStation>[];
-      int skipped = 0;
+    if (external.isNotEmpty) {
+      _cachedExternal = external;
+      _placesLoadedOnce = true;
+    }
 
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final lat  = (data['lat'] as num?)?.toDouble() ?? 0.0;
-        final lng  = (data['lng'] as num?)?.toDouble() ?? 0.0;
+    await _mergeAndEmit(
+      partners: _latestPartners,
+      external: external.isNotEmpty ? external : _cachedExternal,
+      centerLat: latitude,
+      centerLng: longitude,
+    );
+  }
 
-        if (!CoordValidator.isValidMENA(lat, lng)) {
-          dev.log('[StationsMap] Skipped invalid coord for ${doc.id}: '
-              '$lat,$lng', name: 'StationsMapService');
-          skipped++;
-          continue;
-        }
+  Future<void> refreshExternalIfMoved({
+    required double latitude,
+    required double longitude,
+    double minMoveKm = 0.8,
+  }) async {
+    final last = _lastCenter;
+    if (last == null) {
+      await load(latitude: latitude, longitude: longitude);
+      return;
+    }
+    final moved = GeoUtils.distanceKm(
+      last.latitude,
+      last.longitude,
+      latitude,
+      longitude,
+    );
+    if (moved < minMoveKm) {
+      MapPipelineLogger.pipeline(
+        'camera moved ${moved.toStringAsFixed(2)}km — skip Places refresh',
+      );
+      return;
+    }
+    MapPipelineLogger.pipeline(
+      'camera moved ${moved.toStringAsFixed(2)}km — refresh Places',
+    );
+    await _refreshPlacesOnly(latitude: latitude, longitude: longitude);
+  }
 
-        valid.add(MapStation.fromFirestore(doc.id, data));
-      }
+  Future<void> _refreshPlacesOnly({
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (_loadingPlaces) return;
+    _loadingPlaces = true;
+    _lastCenter = LatLng(latitude, longitude);
+    final generation = ++_loadGeneration;
 
-      if (skipped > 0) {
-        dev.log('[StationsMap] Skipped $skipped stations with invalid coords',
-            name: 'StationsMapService');
-      }
+    List<MapStation> external = const [];
+    try {
+      external =
+          await GooglePlacesService.instance.fetchNearbyChargingStations(
+        latitude: latitude,
+        longitude: longitude,
+      );
+    } on Object catch (e) {
+      MapPipelineLogger.places('refresh failed: $e');
+    } finally {
+      _loadingPlaces = false;
+    }
 
-      return valid;
-    } catch (e) {
-      dev.log('[StationsMap] Firestore error: $e', name: 'StationsMapService');
-      return [];
+    if (generation != _loadGeneration) return;
+
+    if (external.isNotEmpty) {
+      _cachedExternal = external;
+      _placesLoadedOnce = true;
+    }
+
+    await _mergeAndEmit(
+      partners: _latestPartners,
+      external: external.isNotEmpty ? external : _cachedExternal,
+      centerLat: latitude,
+      centerLng: longitude,
+    );
+  }
+
+  Future<void> _emitMerged({LatLng? center}) async {
+    final c = center ?? _lastCenter;
+    if (c == null) return;
+    if (!_placesLoadedOnce && _cachedExternal.isEmpty) {
+      MapPipelineLogger.pipeline(
+        'partner watch skipped — Places not loaded yet',
+      );
+      return;
+    }
+    await _mergeAndEmit(
+      partners: _latestPartners,
+      external: _cachedExternal,
+      centerLat: c.latitude,
+      centerLng: c.longitude,
+    );
+  }
+
+  Future<void> _mergeAndEmit({
+    required List<StationModel> partners,
+    required List<MapStation> external,
+    required double centerLat,
+    required double centerLng,
+  }) async {
+    if (external.isNotEmpty) {
+      _cachedExternal = external;
+      _placesLoadedOnce = true;
+    }
+
+    final result = MapPipeline.process(
+      rawFirestore: partners,
+      rawPlaces: external,
+      centerLat: centerLat,
+      centerLng: centerLng,
+    );
+
+    _latest = result.stations;
+    MapPipelineLogger.pipeline(
+      'emit markers=${result.mergedCount} '
+      'fs=${result.firestoreAccepted}/${result.firestoreTotal} '
+      'places=${result.dedupedExternalCount}/${result.placesTotal}',
+    );
+
+    if (!_controller.isClosed) {
+      _controller.add(_latest);
     }
   }
 
-  // ── Deduplication ──────────────────────────────────────────────────────────
-
-  List<MapStation> _deduplicateExternal(
-      List<MapStation> chargix,
-      List<MapStation> external,
-      ) {
-    const proximityThresholdKm = 0.05; // 50 metres
-
-    return external.where((ext) {
-      for (final c in chargix) {
-        final dist = CoordValidator.haversineKm(c.position, ext.position);
-        if (dist < proximityThresholdKm) {
-          dev.log('[StationsMap] Dedup: external "${ext.name}" '
-              'too close to chargix "${c.name}" (${(dist * 1000).round()}m)',
-              name: 'StationsMapService');
-          return false; // remove this external entry
-        }
-      }
-      return true; // keep it
-    }).toList();
-  }
-
-  // ── Search / filter ────────────────────────────────────────────────────────
-
-  /// Filter a pre-loaded station list by query string.
-  /// Matches station name, address, city, connector type.
   List<MapStation> search(List<MapStation> stations, String query) {
-    if (query.trim().isEmpty) return stations;
-    final q = query.toLowerCase().trim();
-    return stations.where((s) {
-      if (s.name.toLowerCase().contains(q))    return true;
-      if (s.address?.toLowerCase().contains(q) ?? false) return true;
-      if (s.connectorTypes.any((c) => c.toLowerCase().contains(q))) return true;
-      // EV keyword hits
-      final evKeywords = ['ev', 'electric', 'charge', 'charger', 'charging',
-        'كهربائي', 'شحن'];
-      if (evKeywords.any((k) => q.contains(k))) return true;
-      return false;
-    }).toList();
+    return MapStationSearch.filter(stations, query);
   }
-}
 
-// ── Result ─────────────────────────────────────────────────────────────────
+  List<MapStation> get currentStations => List.unmodifiable(_latest);
 
-class StationsMapResult {
-  final List<MapStation> all;
-  final List<MapStation> chargix;
-  final List<MapStation> external;
-
-  const StationsMapResult({
-    required this.all,
-    required this.chargix,
-    required this.external,
-  });
-
-  bool get isEmpty => all.isEmpty;
+  void dispose() {
+    _partnerSub?.cancel();
+    _controller.close();
+  }
 }

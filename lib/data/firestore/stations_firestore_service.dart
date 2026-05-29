@@ -15,6 +15,12 @@ class StationsFirestoreService extends BaseFirestoreService {
         return query.docs.map((d) => parseDoc(d, StationModel.fromMap)).toList();
       }, context: 'getPublicStations');
 
+  /// All registered partner stations for the map (not filtered by approval).
+  Future<List<StationModel>> getPartnerStationsForMap() => run(() async {
+        final query = await _stations.get();
+        return query.docs.map((d) => parseDoc(d, StationModel.fromMap)).toList();
+      }, context: 'getPartnerStationsForMap');
+
   Stream<List<StationModel>> watchPublicStations() {
     return runStream(
       () => _stations.where('isPublic', isEqualTo: true).snapshots().map(
@@ -22,6 +28,17 @@ class StationsFirestoreService extends BaseFirestoreService {
                 snap.docs.map((d) => parseDoc(d, StationModel.fromMap)).toList(),
           ),
       context: 'watchPublicStations',
+    );
+  }
+
+  /// Live partner station updates for the map layer.
+  Stream<List<StationModel>> watchPartnerStationsForMap() {
+    return runStream(
+      () => _stations.snapshots().map(
+            (snap) =>
+                snap.docs.map((d) => parseDoc(d, StationModel.fromMap)).toList(),
+          ),
+      context: 'watchPartnerStationsForMap',
     );
   }
 
