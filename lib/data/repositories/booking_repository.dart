@@ -8,14 +8,16 @@ import '../../models/station_slot_model.dart';
 import 'station_owner_repository.dart';
 
 class BookingRepository {
-  BookingRepository({BookingsFirestoreService? service})
-      : _service = service ?? BookingsFirestoreService();
+  BookingRepository({
+    BookingsFirestoreService? service,
+    BookingTransactionService? transactions,
+  })  : _service = service ?? BookingsFirestoreService(),
+        _transactions = transactions ?? BookingTransactionService.instance;
 
   static final BookingRepository instance = BookingRepository();
 
   final BookingsFirestoreService _service;
-  final BookingTransactionService _transactions =
-      BookingTransactionService.instance;
+  final BookingTransactionService _transactions;
 
   Stream<List<BookingModel>> watchBookingsForUser(String userId) =>
       _service.watchBookingsForUser(userId);
