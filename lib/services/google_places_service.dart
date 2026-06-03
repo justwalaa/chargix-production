@@ -46,78 +46,25 @@ class GooglePlacesService {
 
   final http.Client _client;
 
-  /// Nearby EV chargers — merges typed search, keyword search, and pagination.
+  /// Nearby EV chargers via Places API (New) — strict includedTypes filter,
+  /// eliminates false positives from text/keyword searches.
   Future<List<MapStation>> fetchNearbyChargingStations({
     required double latitude,
     required double longitude,
     int radiusMeters = MapsConfig.nearbySearchRadiusMeters,
   }) async {
-    final byId = <String, MapStation>{};
-
-    void absorb(List<MapStation> batch) {
-      for (final s in batch) {
-        final key = s.external?.placeId ?? s.id;
-        byId.putIfAbsent(key, () => s);
-      }
-    }
-
-    absorb(
-      await _nearbySearch(
-        latitude: latitude,
-        longitude: longitude,
-        radiusMeters: radiusMeters,
-        type: MapsConfig.nearbySearchType,
-      ),
-    );
-
-    absorb(
-      await _nearbySearch(
-        latitude: latitude,
-        longitude: longitude,
-        radiusMeters: radiusMeters,
-        keyword: 'electric vehicle charging station',
-      ),
-    );
-
-    absorb(
-      await searchChargingStationsByText(
-        query: 'EV charging station',
-        latitude: latitude,
-        longitude: longitude,
-        radiusMeters: radiusMeters,
-      ),
-    );
-
-    absorb(
-      await searchChargingStationsByText(
-        query: 'electric vehicle charging station',
-        latitude: latitude,
-        longitude: longitude,
-        radiusMeters: radiusMeters,
-      ),
-    );
-
-    absorb(
-      await searchChargingStationsByText(
-        query: 'charging station',
-        latitude: latitude,
-        longitude: longitude,
-        radiusMeters: radiusMeters,
-      ),
-    );
-
-    final list = byId.values.toList(growable: false);
-    list.sort(
-      (a, b) => (a.distanceKm ?? double.infinity)
-          .compareTo(b.distanceKm ?? double.infinity),
+    final stations = await _nearbySearchNew(
+      latitude: latitude,
+      longitude: longitude,
+      radiusMeters: radiusMeters,
     );
     MapPipelineLogger.places(
-      '${list.length} external stations near ($latitude, $longitude)',
+      '${stations.length} external stations near ($latitude, $longitude)',
     );
-    if (list.isEmpty) {
-      MapPipelineLogger.places('empty response for nearby search');
+    if (stations.isEmpty) {
+      MapPipelineLogger.places('zero EV chargers from Places API (New)');
     }
-    return list;
+    return stations;
   }
 
   /// Address / place autocomplete (registration + map search assist).
@@ -206,6 +153,9 @@ class GooglePlacesService {
     );
   }
 
+  /// Text search by name — used by verification flow to confirm a specific
+  /// station name exists on Google Maps near given coordinates.
+  /// Not used for generic "find all chargers" queries.
   Future<List<MapStation>> searchChargingStationsByText({
     required String query,
     required double latitude,
@@ -230,9 +180,29 @@ class GooglePlacesService {
     final stations = <MapStation>[];
     for (final raw in results) {
       if (raw is! Map<String, dynamic>) continue;
-      if (!_isEvChargingPlace(raw)) continue;
-      final station = _parsePlace(raw, latitude, longitude);
-      if (station != null) stations.add(station);
+      final placeId = raw['place_id'] as String?;
+      final name = raw['name'] as String?;
+      final geometry = raw['geometry'] as Map<String, dynamic>?;
+      final location = geometry?['location'] as Map<String, dynamic>?;
+      final lat = (location?['lat'] as num?)?.toDouble();
+      final lng = (location?['lng'] as num?)?.toDouble();
+      if (placeId == null || name == null || lat == null || lng == null) {
+        continue;
+      }
+      final km = GeoUtils.distanceKm(latitude, longitude, lat, lng);
+      stations.add(
+        MapStation.external(
+          id: placeId,
+          name: name,
+          address: raw['formatted_address'] as String? ??
+              raw['vicinity'] as String? ??
+              name,
+          latitude: lat,
+          longitude: lng,
+          distanceKm: km,
+          external: ExternalPlaceMetadata(placeId: placeId),
+        ),
+      );
     }
     return stations;
   }
@@ -304,69 +274,123 @@ class GooglePlacesService {
     );
   }
 
-  Future<List<MapStation>> _nearbySearch({
+  Future<List<MapStation>> _nearbySearchNew({
     required double latitude,
     required double longitude,
     required int radiusMeters,
-    String? type,
-    String? keyword,
   }) async {
-    final params = <String, String>{
-      'location': '$latitude,$longitude',
-      'radius': '$radiusMeters',
-      'key': MapsConfig.placesApiKey,
-    };
-    if (type != null && type.isNotEmpty) {
-      params['type'] = type;
-    }
-    if (keyword != null && keyword.isNotEmpty) {
-      params['keyword'] = keyword;
-    }
+    final uri = Uri.parse('https://places.googleapis.com/v1/places:searchNearby');
+    final requestBody = jsonEncode({
+      'includedTypes': ['electric_vehicle_charging_station'],
+      'maxResultCount': MapsConfig.nearbySearchMaxResults,
+      'locationRestriction': {
+        'circle': {
+          'center': {'latitude': latitude, 'longitude': longitude},
+          'radius': radiusMeters.toDouble(),
+        },
+      },
+    });
 
-    final uri = Uri.https(
-      'maps.googleapis.com',
-      '/maps/api/place/nearbysearch/json',
-      params,
+    final response = await _postJson(
+      uri,
+      body: requestBody,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': MapsConfig.placesApiKey,
+        'X-Goog-FieldMask':
+            'places.id,places.displayName,places.location,'
+            'places.formattedAddress,places.evChargeOptions',
+      },
+      context: 'nearbySearchNew',
     );
+    if (response == null) return [];
 
-    final all = <MapStation>[];
-    String? pageToken;
-    var pages = 0;
+    final places = response['places'] as List<dynamic>? ?? [];
+    final stations = <MapStation>[];
+    for (final raw in places) {
+      if (raw is! Map<String, dynamic>) continue;
+      final station = _parsePlaceNew(raw, latitude, longitude);
+      if (station != null) stations.add(station);
+    }
+    return stations;
+  }
 
-    do {
-      final queryUri = pageToken == null
-          ? uri
-          : uri.replace(
-              queryParameters: {
-                ...uri.queryParameters,
-                'pagetoken': pageToken,
-              },
-            );
+  MapStation? _parsePlaceNew(
+    Map<String, dynamic> place,
+    double userLat,
+    double userLng,
+  ) {
+    final id = place['id'] as String?;
+    final displayName = place['displayName'] as Map<String, dynamic>?;
+    final name = displayName?['text'] as String?;
+    final location = place['location'] as Map<String, dynamic>?;
+    final lat = (location?['latitude'] as num?)?.toDouble();
+    final lng = (location?['longitude'] as num?)?.toDouble();
+    if (id == null || name == null || lat == null || lng == null) return null;
 
-      if (pageToken != null) {
-        await Future<void>.delayed(const Duration(seconds: 2));
+    final address = place['formattedAddress'] as String? ?? name;
+    final evOptions = place['evChargeOptions'] as Map<String, dynamic>?;
+    final connectorCount = (evOptions?['connectorCount'] as num?)?.toInt();
+    final aggregation =
+        evOptions?['connectorAggregation'] as List<dynamic>? ?? [];
+    double? maxChargeRateKw;
+    final connectorTypes = <String>[];
+    for (final agg in aggregation) {
+      if (agg is! Map<String, dynamic>) continue;
+      final rate = (agg['maxChargeRateKw'] as num?)?.toDouble();
+      if (rate != null &&
+          (maxChargeRateKw == null || rate > maxChargeRateKw)) {
+        maxChargeRateKw = rate;
       }
+      final type = agg['type'] as String?;
+      if (type != null && type.isNotEmpty) connectorTypes.add(type);
+    }
 
-      final body = await _getJson(queryUri, context: 'nearbysearch');
-      if (body == null) break;
+    final chargerHint = connectorCount != null
+        ? '$connectorCount connector${connectorCount == 1 ? '' : 's'}'
+            '${maxChargeRateKw != null ? ' · ${maxChargeRateKw.toStringAsFixed(0)} kW' : ''}'
+        : 'EV charging';
 
-      final results = body['results'] as List<dynamic>? ?? [];
-      for (final raw in results) {
-        if (raw is! Map<String, dynamic>) continue;
-        final isTypedEvSearch = type == MapsConfig.nearbySearchType;
-        if (isTypedEvSearch ||
-            keyword != null ||
-            _isEvChargingPlace(raw)) {
-          final station = _parsePlace(raw, latitude, longitude);
-          if (station != null) all.add(station);
-        }
+    final km = GeoUtils.distanceKm(userLat, userLng, lat, lng);
+
+    return MapStation.external(
+      id: id,
+      name: name,
+      address: address,
+      latitude: lat,
+      longitude: lng,
+      distanceKm: km,
+      external: ExternalPlaceMetadata(
+        placeId: id,
+        chargerTypeHint: chargerHint,
+        connectorCount: connectorCount,
+        maxChargeRateKw: maxChargeRateKw,
+        connectorTypes: connectorTypes.isEmpty ? null : connectorTypes,
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> _postJson(
+    Uri uri, {
+    required String body,
+    required Map<String, String> headers,
+    required String context,
+  }) async {
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 18));
+      if (response.statusCode != 200) {
+        MapPipelineLogger.places(
+          '$context HTTP ${response.statusCode}: ${response.body}',
+        );
+        return null;
       }
-
-      pageToken = body['next_page_token'] as String?;
-      pages++;
-    } while (pageToken != null && pages < MapsConfig.maxPlacesPages);
-
-    return all;
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } on Object catch (e) {
+      MapPipelineLogger.places('$context failed: $e');
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>?> _getJson(Uri uri, {required String context}) async {
@@ -399,77 +423,4 @@ class GooglePlacesService {
     }
   }
 
-  bool _isEvChargingPlace(Map<String, dynamic> place) {
-    final types = (place['types'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        [];
-    if (types.contains('electric_vehicle_charging_station')) {
-      return true;
-    }
-    final name = (place['name'] as String? ?? '').toLowerCase();
-    if (name.contains('charg') ||
-        name.contains('charging') ||
-        name.contains('supercharger') ||
-        name.contains('ev ') ||
-        name.startsWith('ev ') ||
-        name.endsWith(' ev')) {
-      return true;
-    }
-    return false;
-  }
-
-  MapStation? _parsePlace(
-    Map<String, dynamic> place,
-    double userLat,
-    double userLng,
-  ) {
-    final placeId = place['place_id'] as String?;
-    final name = place['name'] as String?;
-    final geometry = place['geometry'] as Map<String, dynamic>?;
-    final location = geometry?['location'] as Map<String, dynamic>?;
-    final lat = (location?['lat'] as num?)?.toDouble();
-    final lng = (location?['lng'] as num?)?.toDouble();
-    if (placeId == null || name == null || lat == null || lng == null) {
-      return null;
-    }
-
-    final vicinity = place['vicinity'] as String? ??
-        place['formatted_address'] as String? ??
-        '';
-    final rating = (place['rating'] as num?)?.toDouble();
-    final total = (place['user_ratings_total'] as num?)?.toInt();
-    final openNow = (place['opening_hours'] as Map<String, dynamic>?)?['open_now']
-        as bool?;
-    final businessStatus = place['business_status'] as String?;
-
-    final types = (place['types'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        [];
-    final chargerHint = types.contains('electric_vehicle_charging_station')
-        ? 'EV charging'
-        : types.isNotEmpty
-            ? types.first.replaceAll('_', ' ')
-            : 'EV charging';
-
-    final km = GeoUtils.distanceKm(userLat, userLng, lat, lng);
-
-    return MapStation.external(
-      id: placeId,
-      name: name,
-      address: vicinity.isEmpty ? name : vicinity,
-      latitude: lat,
-      longitude: lng,
-      distanceKm: km,
-      external: ExternalPlaceMetadata(
-        placeId: placeId,
-        rating: rating,
-        userRatingsTotal: total,
-        chargerTypeHint: chargerHint,
-        isOpenNow: openNow,
-        businessStatus: businessStatus,
-      ),
-    );
-  }
 }

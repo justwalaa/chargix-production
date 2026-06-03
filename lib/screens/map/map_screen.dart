@@ -12,8 +12,11 @@ import '../../services/map/map_marker_builder.dart';
 import '../../services/map/map_pipeline_logger.dart';
 import '../../services/stations_map_service.dart';
 import '../../utils/geo_utils.dart';
-import '../../utils/map_station_search.dart';
+import '../../models/map_station_item.dart';
+import '../../utils/map_station_utils.dart';
 import '../../widgets/map/chargix_map_fab_column.dart';
+import '../../widgets/map/map_filter_chips.dart';
+import '../../widgets/map/map_nearby_panel.dart';
 import '../../widgets/map/map_loading_overlay.dart';
 import '../../widgets/map/map_search_bar.dart';
 import '../../widgets/map/map_search_suggestions.dart';
@@ -52,6 +55,7 @@ class _MapScreenState extends State<MapScreen> {
   BitmapDescriptor _chargixIcon = BitmapDescriptor.defaultMarker;
   BitmapDescriptor _externalIcon = BitmapDescriptor.defaultMarker;
   bool _iconsReady = false;
+  MapStationFilter _activeFilter = MapStationFilter.all;
 
   @override
   void initState() {
@@ -77,8 +81,21 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
-  List<MapStation> get _visibleStations =>
-      MapStationSearch.filter(_allStations, _searchQuery);
+  List<MapStationItem> get _filteredItems {
+    final items = MapStationUtils.withDistances(stations: _allStations);
+    return MapStationUtils.applyFilter(
+      MapStationUtils.sortByDistance(items),
+      _activeFilter,
+    );
+  }
+
+  List<MapStation> get _visibleStations {
+    final q = _searchQuery.trim();
+    if (q.isEmpty) return _filteredItems.map((i) => i.station).toList();
+    return MapStationUtils.applySearch(_filteredItems, q)
+        .map((i) => i.station)
+        .toList();
+  }
 
   List<MapStation> get _searchSuggestions {
     final q = _searchQuery.trim();
@@ -378,6 +395,26 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  void _onFilterChanged(MapStationFilter filter) {
+    setState(() => _activeFilter = filter);
+    _rebuildMarkers();
+  }
+
+  Future<void> _onListStationTap(MapStationItem item) async {
+    final controller = _controller;
+    if (controller != null) {
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(item.station.latitude, item.station.longitude),
+            zoom: 16,
+          ),
+        ),
+      );
+    }
+    await _openPreview(item.station);
+  }
+
   bool get _bootstrapComplete =>
       _mapCreated && _locationResolved && _stationsLoaded;
 
@@ -405,7 +442,7 @@ class _MapScreenState extends State<MapScreen> {
             compassEnabled: true,
             mapToolbarEnabled: false,
             zoomControlsEnabled: false,
-            padding: EdgeInsets.only(top: topPad + 8, bottom: bottomPad + 88),
+            padding: EdgeInsets.only(top: topPad + 8, bottom: bottomPad + 296),
             onMapCreated: _onMapCreated,
             onCameraIdle: () => unawaited(_onCameraIdle()),
           ),
@@ -445,14 +482,31 @@ class _MapScreenState extends State<MapScreen> {
               top: topPad + (showSuggestions ? 280 : 72),
               left: 16,
               child: _StationCountBadge(
-                partner: _allStations.where((s) => s.isPartner).length,
-                external: _allStations.where((s) => s.isExternal).length,
+                partner:
+                    _filteredItems.where((i) => i.station.isPartner).length,
+                external:
+                    _filteredItems.where((i) => i.station.isExternal).length,
                 visible: _markers.length,
               ),
             ),
           Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 280,
+            child: MapNearbyPanel(
+              items: _filteredItems,
+              onStationTap: (item) => unawaited(_onListStationTap(item)),
+              loading: !_stationsLoaded,
+              filterChips: MapFilterChips(
+                selected: _activeFilter,
+                onSelected: _onFilterChanged,
+              ),
+            ),
+          ),
+          Positioned(
             right: 16,
-            bottom: bottomPad + 16,
+            bottom: bottomPad + 292,
             child: ChargixMapFabColumn(
               ready: _bootstrapComplete,
               onRecenterUser: _recenterOnUser,

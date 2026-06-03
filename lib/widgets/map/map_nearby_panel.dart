@@ -10,11 +10,13 @@ class MapNearbyPanel extends StatelessWidget {
     required this.items,
     required this.onStationTap,
     this.loading = false,
+    this.filterChips,
   });
 
   final List<MapStationItem> items;
   final ValueChanged<MapStationItem> onStationTap;
   final bool loading;
+  final Widget? filterChips;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +31,7 @@ class MapNearbyPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
             child: Row(
               children: [
                 Icon(Icons.near_me_rounded, size: 20, color: scheme.primary),
@@ -53,6 +55,11 @@ class MapNearbyPanel extends StatelessWidget {
               ],
             ),
           ),
+          if (filterChips != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: filterChips!,
+            ),
           Expanded(
             child: items.isEmpty
                 ? Center(
@@ -65,7 +72,7 @@ class MapNearbyPanel extends StatelessWidget {
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    itemCount: items.length.clamp(0, 8),
+                    itemCount: items.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 8),
                     itemBuilder: (context, index) {
@@ -76,14 +83,19 @@ class MapNearbyPanel extends StatelessWidget {
                           ? '${partner?.availablePorts ?? 0}/${partner?.totalPorts ?? 0} ports · ${GeoUtils.formatDistanceKm(item.distanceKm)}'
                           : '${station.external?.chargerTypeHint ?? 'EV charging'} · ${GeoUtils.formatDistanceKm(item.distanceKm)}';
 
+                      final isNearest = index == 0 && items.isNotEmpty;
                       return ListTile(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppRadii.lg),
                           side: BorderSide(
-                            color: scheme.outline.withValues(alpha: 0.25),
+                            color: isNearest
+                                ? scheme.primary.withValues(alpha: 0.4)
+                                : scheme.outline.withValues(alpha: 0.25),
                           ),
                         ),
-                        tileColor: scheme.surface,
+                        tileColor: isNearest
+                            ? scheme.primaryContainer.withValues(alpha: 0.18)
+                            : scheme.surface,
                         leading: CircleAvatar(
                           backgroundColor: station.isPartner
                               ? scheme.primaryContainer.withValues(alpha: 0.6)
@@ -107,7 +119,35 @@ class MapNearbyPanel extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        trailing: const Icon(Icons.chevron_right_rounded),
+                        trailing: isNearest
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: scheme.primary
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'NEAREST',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: scheme.primary,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.chevron_right_rounded),
+                                ],
+                              )
+                            : const Icon(Icons.chevron_right_rounded),
                         onTap: () => onStationTap(item),
                       );
                     },

@@ -10,6 +10,9 @@ class ExternalPlaceMetadata {
     this.chargerTypeHint,
     this.isOpenNow,
     this.businessStatus,
+    this.connectorCount,
+    this.maxChargeRateKw,
+    this.connectorTypes,
   });
 
   final String placeId;
@@ -18,4 +21,7 @@ class ExternalPlaceMetadata {
   final String? chargerTypeHint;
   final bool? isOpenNow;
   final String? businessStatus;
+  final int? connectorCount;
+  final double? maxChargeRateKw;
+  final List<String>? connectorTypes;
 }
