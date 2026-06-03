@@ -1,11 +1,17 @@
-/// Google Maps / Places API key (must match Android/iOS Maps SDK key).
+/// Google Maps / Places configuration.
 ///
-/// Enable **Places API** + **Maps SDK for Android** in Google Cloud Console.
+/// TWO separate keys are in use:
+///   - Maps SDK display key: set in android/app/src/main/AndroidManifest.xml
+///     (com.google.android.geo.API_KEY). Restricted to "Android apps".
+///   - Places HTTP key (below): used for all Places API REST calls from Dart.
+///     Restricted to "Places API" only — no Android-app restriction so plain
+///     HTTP calls from the http package are accepted.
 abstract final class MapsConfig {
-  /// Same key as `android/app/src/main/AndroidManifest.xml` → `com.google.android.geo.API_KEY`.
+  /// Key for all Google Places REST API calls (nearbysearch, textsearch,
+  /// autocomplete, geocode). Distinct from the Maps SDK display key.
   static const String placesApiKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
-    defaultValue: 'AIzaSyAu_Fetxrs57m_ldC6axCrnBkUQXw9AC8M',
+    'GOOGLE_PLACES_HTTP_KEY',
+    defaultValue: 'AIzaSyDdHk6xeWjblZm-cQZFd89ysjmxSOBpqPk',
   );
 
   /// Amman, Jordan — map fallback when GPS unavailable.

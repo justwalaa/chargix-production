@@ -1,3 +1,20 @@
+// lib/services/stations_map_service.dart
+//
+// ✅ REPLACE your entire stations_map_service.dart with this file.
+//
+// What changed (2 fixes):
+//
+// FIX 1 — _emitMerged() guard REMOVED.
+//   Before: if Places never loaded, partner watch updates were silently dropped.
+//   After:  partners always emit even when Places returns 0 results.
+//   This is why the map only showed registered stations — the guard blocked
+//   the very first partner-watch emission when Places was still loading.
+//
+// FIX 2 — _mergeAndEmit() now always emits partners even if external is empty.
+//   Before: external.isEmpty meant _cachedExternal stayed empty and
+//           _placesLoadedOnce stayed false → guard kept blocking.
+//   After:  partners emit immediately; external stations are added when ready.
+
 import 'dart:async';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -45,6 +62,7 @@ class MapStationsService {
           'watch update partners=${partners.length}',
         );
         _latestPartners = partners;
+        // FIX 1: Always emit — removed the _placesLoadedOnce guard
         unawaited(_emitMerged(center: _lastCenter));
       },
       onError: (Object e, StackTrace st) {
@@ -61,12 +79,16 @@ class MapStationsService {
     final generation = ++_loadGeneration;
     _lastCenter = LatLng(latitude, longitude);
 
-    final radius = (radiusMeters ?? MapsConfig.nearbySearchRadiusMeters).round();
+    final radius =
+        (radiusMeters ?? MapsConfig.nearbySearchRadiusMeters).round();
     MapPipelineLogger.pipeline(
       'load @ ($latitude, $longitude) r=${radius}m gen=$generation',
     );
 
+    // FIX 2: Emit partners immediately, don't wait for Places
     final partnersFuture = ChargixData.stations.fetchMapPartnerStations();
+
+    // Kick off Places fetch in parallel — don't await it before emitting
     final externalFuture =
         GooglePlacesService.instance.fetchNearbyChargingStations(
       latitude: latitude,
@@ -74,6 +96,7 @@ class MapStationsService {
       radiusMeters: radius,
     );
 
+    // Partners first — show them on map immediately
     final partnersResult = await partnersFuture;
     if (generation != _loadGeneration) {
       MapPipelineLogger.pipeline('load gen=$generation superseded — skip');
@@ -90,9 +113,20 @@ class MapStationsService {
       MapPipelineLogger.firestore('fetch ok count=${partners.length}');
     }
 
+    // Emit partners right away so map shows Chargix stations immediately
+    // even before Places API responds
+    await _mergeAndEmit(
+      partners: _latestPartners,
+      external: _cachedExternal, // may be empty on first load — that's fine
+      centerLat: latitude,
+      centerLng: longitude,
+    );
+
+    // Now wait for Places results and emit again once they arrive
     List<MapStation> external = const [];
     try {
       external = await externalFuture;
+      MapPipelineLogger.places('external count=${external.length}');
     } on Object catch (e, st) {
       MapPipelineLogger.places('fetch failed: $e\n$st');
     }
@@ -104,6 +138,7 @@ class MapStationsService {
       _placesLoadedOnce = true;
     }
 
+    // Second emit: partners + external together
     await _mergeAndEmit(
       partners: _latestPartners,
       external: external.isNotEmpty ? external : _cachedExternal,
@@ -177,15 +212,11 @@ class MapStationsService {
     );
   }
 
+  // FIX 1: _emitMerged no longer has the _placesLoadedOnce guard
   Future<void> _emitMerged({LatLng? center}) async {
     final c = center ?? _lastCenter;
     if (c == null) return;
-    if (!_placesLoadedOnce && _cachedExternal.isEmpty) {
-      MapPipelineLogger.pipeline(
-        'partner watch skipped — Places not loaded yet',
-      );
-      return;
-    }
+    // REMOVED: the old guard that prevented emission when Places hadn't loaded
     await _mergeAndEmit(
       partners: _latestPartners,
       external: _cachedExternal,
