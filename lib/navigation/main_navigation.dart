@@ -1,6 +1,4 @@
-// lib/navigation/main_navigation.dart
-//
-// Driver shell: Home → Map → Activity → Profile
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -47,21 +45,21 @@ class _MainNavigationState extends State<MainNavigation> {
 
     return BookingStatusWatcher(
       child: MainTabScope(
-      goToTab: _goToTab,
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: IndexedStack(
-          index: _currentIndex,
-          children: _tabs,
-        ),
-        bottomNavigationBar: _ChargixNavBar(
-          currentIndex: _currentIndex,
-          onTap: _goToTab,
-          electricColor: electric,
-          inactiveColor: inactive,
+        goToTab: _goToTab,
+        child: Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: IndexedStack(
+            index: _currentIndex,
+            children: _tabs,
+          ),
+          bottomNavigationBar: _ChargixNavBar(
+            currentIndex: _currentIndex,
+            onTap: _goToTab,
+            electricColor: electric,
+            inactiveColor: inactive,
+          ),
         ),
       ),
-    ),
     );
   }
 }
@@ -79,10 +77,11 @@ class _ChargixNavBar extends StatelessWidget {
     required this.inactiveColor,
   });
 
+  // ✅ CHANGED: 'Activity' → 'Bookings', Icons.history_rounded → Icons.calendar_month_rounded
   static const _items = [
     _NavItem(icon: Icons.home_rounded, label: 'Home'),
     _NavItem(icon: Icons.map_rounded, label: 'Map'),
-    _NavItem(icon: Icons.history_rounded, label: 'Activity'),
+    _NavItem(icon: Icons.calendar_month_rounded, label: 'Bookings'), // ← changed
     _NavItem(icon: Icons.person_rounded, label: 'Profile'),
   ];
 

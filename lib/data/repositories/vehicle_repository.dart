@@ -22,6 +22,15 @@ class VehicleRepository {
     }
   }
 
+  Future<DataState<void>> deleteVehicle(String vehicleId) async {
+    try {
+      await _service.deleteVehicle(vehicleId);
+      return const DataSuccess(null);
+    } catch (e, st) {
+      return DataError(e, stackTrace: st);
+    }
+  }
+
   Future<DataState<void>> saveVehicle(VehicleModel vehicle) async {
     try {
       final existing = await _service.getVehiclesForUser(vehicle.userId);

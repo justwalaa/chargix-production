@@ -16,9 +16,12 @@ class BookingModel {
     this.scheduledEnd,
     this.portNumber,
     this.slotId,
+    this.windowId,
+    this.windowDateKey,
     this.priceTotal,
     this.notes,
     this.rejectionReason,
+    this.isDriverVerified,
     this.createdAt,
     this.updatedAt,
   });
@@ -32,9 +35,21 @@ class BookingModel {
   final DateTime? scheduledEnd;
   final int? portNumber;
   final String? slotId;
+
+  /// ID of the [SlotTimeWindow] that was booked (e.g. "tw_1").
+  /// Used to release the window's [bookedDates] entry on cancel/reject.
+  final String? windowId;
+
+  /// The "yyyy-MM-dd" date key locked in [SlotTimeWindow.bookedDates].
+  final String? windowDateKey;
+
   final double? priceTotal;
   final String? notes;
   final String? rejectionReason;
+
+  /// Snapshot of the driver's verified status at booking creation time.
+  final bool? isDriverVerified;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -52,9 +67,12 @@ class BookingModel {
         'scheduledEnd': FirestoreHelpers.dateTimeToTimestamp(scheduledEnd),
       if (portNumber != null) 'portNumber': portNumber,
       if (slotId != null) 'slotId': slotId,
+      if (windowId != null) 'windowId': windowId,
+      if (windowDateKey != null) 'windowDateKey': windowDateKey,
       if (priceTotal != null) 'priceTotal': priceTotal,
       if (notes != null) 'notes': notes,
       if (rejectionReason != null) 'rejectionReason': rejectionReason,
+      if (isDriverVerified != null) 'isDriverVerified': isDriverVerified,
       if (createdAt != null)
         'createdAt': FirestoreHelpers.dateTimeToTimestamp(createdAt),
       if (updatedAt != null)
@@ -78,11 +96,15 @@ class BookingModel {
           ? FirestoreHelpers.requireInt(map, 'portNumber')
           : null,
       slotId: FirestoreHelpers.optionalString(map, 'slotId'),
+      windowId: FirestoreHelpers.optionalString(map, 'windowId'),
+      windowDateKey: FirestoreHelpers.optionalString(map, 'windowDateKey'),
       priceTotal: map['priceTotal'] != null
           ? FirestoreHelpers.requireDouble(map, 'priceTotal')
           : null,
       notes: FirestoreHelpers.optionalString(map, 'notes'),
-      rejectionReason: FirestoreHelpers.optionalString(map, 'rejectionReason'),
+      rejectionReason:
+          FirestoreHelpers.optionalString(map, 'rejectionReason'),
+      isDriverVerified: map['isDriverVerified'] as bool?,
       createdAt: FirestoreHelpers.timestampToDateTime(map['createdAt']),
       updatedAt: FirestoreHelpers.timestampToDateTime(map['updatedAt']),
     );

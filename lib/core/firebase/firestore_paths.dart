@@ -32,4 +32,10 @@ abstract final class FirestorePaths {
       '$stationOwnerProfiles/$uid';
 
   static String notification(String id) => '$notifications/$id';
+
+  static String userNotificationsCollection(String uid) =>
+      '$users/$uid/notifications';
+
+  static String userNotification(String uid, String notifId) =>
+      '${userNotificationsCollection(uid)}/$notifId';
 }

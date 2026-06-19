@@ -47,4 +47,30 @@ class UsersFirestoreService extends BaseFirestoreService {
         final snap = await userDoc(uid).get();
         return snap.exists;
       }, context: 'userExists');
+
+  Future<void> incrementBookingStats(
+    String uid, {
+    required bool qrVerified,
+  }) =>
+      run(() async {
+        final updates = <String, dynamic>{
+          'totalBookings': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (qrVerified) {
+          updates['completedWithQR'] = FieldValue.increment(1);
+        }
+        await userDoc(uid).update(updates);
+
+        // Recompute isVerifiedDriver after incrementing
+        final snap = await userDoc(uid).get();
+        if (snap.exists) {
+          final data = snap.data()!;
+          final total = (data['totalBookings'] as num?)?.toInt() ?? 0;
+          final qr = (data['completedWithQR'] as num?)?.toInt() ?? 0;
+          final isVerified = total >= 3 && qr == total;
+          await userDoc(uid)
+              .update({'isVerifiedDriver': isVerified});
+        }
+      }, context: 'incrementBookingStats');
 }

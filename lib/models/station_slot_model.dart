@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/firebase/firestore_helpers.dart';
+import 'slot_time_window.dart';
 
 /// `stations/{stationId}/slots/{slotId}` — bookable charger bay.
 @immutable
@@ -17,6 +18,7 @@ class StationSlotModel {
     this.isOpen = true,
     this.isAvailable = true,
     this.notes,
+    this.timeWindows = const [],
     this.createdAt,
     this.updatedAt,
   });
@@ -32,6 +34,12 @@ class StationSlotModel {
   final bool isOpen;
   final bool isAvailable;
   final String? notes;
+
+  /// Operator-defined daily time windows for this bay.
+  /// Each window repeats every day; [SlotTimeWindow.bookedDates] tracks
+  /// which specific calendar dates (yyyy-MM-dd) are already booked.
+  final List<SlotTimeWindow> timeWindows;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -48,6 +56,7 @@ class StationSlotModel {
       'isOpen': isOpen,
       'isAvailable': isAvailable,
       if (notes != null && notes!.isNotEmpty) 'notes': notes,
+      'timeWindows': timeWindows.map((w) => w.toMap()).toList(),
       if (createdAt != null)
         'createdAt': FirestoreHelpers.dateTimeToTimestamp(createdAt),
       if (updatedAt != null)
@@ -56,6 +65,17 @@ class StationSlotModel {
   }
 
   factory StationSlotModel.fromMap(Map<String, dynamic> map) {
+    final rawWindows = map['timeWindows'];
+    final List<SlotTimeWindow> windows;
+    if (rawWindows is List) {
+      windows = rawWindows
+          .whereType<Map<String, dynamic>>()
+          .map(SlotTimeWindow.fromMap)
+          .toList();
+    } else {
+      windows = const [];
+    }
+
     return StationSlotModel(
       id: FirestoreHelpers.requireString(map, 'id'),
       stationId: FirestoreHelpers.requireString(map, 'stationId'),
@@ -74,8 +94,10 @@ class StationSlotModel {
         fallback: 45,
       ),
       isOpen: FirestoreHelpers.requireBool(map, 'isOpen', fallback: true),
-      isAvailable: FirestoreHelpers.requireBool(map, 'isAvailable', fallback: true),
+      isAvailable:
+          FirestoreHelpers.requireBool(map, 'isAvailable', fallback: true),
       notes: FirestoreHelpers.optionalString(map, 'notes'),
+      timeWindows: windows,
       createdAt: FirestoreHelpers.timestampToDateTime(map['createdAt']),
       updatedAt: FirestoreHelpers.timestampToDateTime(map['updatedAt']),
     );
@@ -93,6 +115,7 @@ class StationSlotModel {
     bool? isOpen,
     bool? isAvailable,
     String? notes,
+    List<SlotTimeWindow>? timeWindows,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -109,6 +132,7 @@ class StationSlotModel {
       isOpen: isOpen ?? this.isOpen,
       isAvailable: isAvailable ?? this.isAvailable,
       notes: notes ?? this.notes,
+      timeWindows: timeWindows ?? this.timeWindows,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -19,10 +19,7 @@ abstract final class MapsConfig {
   static const double fallbackLongitude = 35.9106;
 
   static const int nearbySearchRadiusMeters = 25000;
-  static const String nearbySearchType = 'electric_vehicle_charging_station';
-
-  /// Google requires ~2s before using [next_page_token].
-  static const int maxPlacesPages = 3;
+  static const int nearbySearchMaxResults = 20;
 
   static const Duration placesAutocompleteDebounce = Duration(milliseconds: 350);
 }

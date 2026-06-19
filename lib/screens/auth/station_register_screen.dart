@@ -1,24 +1,43 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../models/picked_station_location.dart';
 import 'station_location_picker_screen.dart';
+
+const _green        = Color(0xFF22C55E);
+const _greenDark    = Color(0xFF16A34A);
+const _greenSurface = Color(0xFFDCFCE7);
+const _canvas       = Color(0xFFF8F9FA);
+const _white        = Color(0xFFFFFFFF);
+const _ink          = Color(0xFF101828);
+const _slate        = Color(0xFF6B7280);
+const _border       = Color(0xFFE5E7EB);
+
+TextStyle _sg(double size, FontWeight w,
+    {Color color = _ink, double ls = 0}) =>
+    GoogleFonts.spaceGrotesk(
+        fontSize: size, fontWeight: w, color: color, letterSpacing: ls);
+
+TextStyle _dm(double size, FontWeight w, {Color color = _ink, double? h}) =>
+    GoogleFonts.dmSans(fontSize: size, fontWeight: w, color: color, height: h);
 
 class StationRegisterScreen extends StatefulWidget {
   const StationRegisterScreen({super.key});
 
   @override
-  State<StationRegisterScreen> createState() => _StationRegisterScreenState();
+  State<StationRegisterScreen> createState() =>
+      _StationRegisterScreenState();
 }
 
 class _StationRegisterScreenState extends State<StationRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _scrollController = ScrollController();
 
-  // Section A — Owner account
   final _ownerNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -26,11 +45,9 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
   final _phoneController = TextEditingController();
   String _countryCode = '+962';
 
-  // Section B — Station info
   final _stationNameController = TextEditingController();
   PickedStationLocation? _pickedLocation;
 
-  // Section C — Charger details
   final _chargerCountController = TextEditingController(text: '1');
   double _powerKw = 22.0;
   final Set<String> _connectorTypes = {'Type 2'};
@@ -41,75 +58,52 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
   String? _errorMessage;
 
   static const _connectors = [
-    'Type 1',
-    'Type 2',
-    'CCS',
-    'CHAdeMO',
-    'Tesla/NACS',
-    'GB/T',
+    'Type 1', 'Type 2', 'CCS', 'CHAdeMO', 'Tesla/NACS', 'GB/T',
   ];
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _ownerNameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _phoneController.dispose();
-    _stationNameController.dispose();
-    _chargerCountController.dispose();
+    for (final c in [
+      _ownerNameController, _emailController, _passwordController,
+      _confirmPasswordController, _phoneController,
+      _stationNameController, _chargerCountController,
+    ]) { c.dispose(); }
     super.dispose();
   }
 
-  // ── Register ───────────────────────────────────────────────────────────────
-
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) {
-      // Scroll to top so user sees first error.
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      _scrollController.animateTo(0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut);
       return;
     }
-
     if (_connectorTypes.isEmpty) {
-      setState(() => _errorMessage = 'Select at least one connector type.');
+      setState(
+          () => _errorMessage = 'Select at least one connector type.');
       return;
     }
-
     if (_pickedLocation == null) {
       setState(() => _errorMessage = 'Pin your station on the map.');
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() { _isLoading = true; _errorMessage = null; });
 
     try {
-      // 1. Create Firebase Auth user with email + password.
-      final credential =
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
       final uid = credential.user!.uid;
       final phoneE164 =
           '$_countryCode${_phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '')}';
-
       final firestore = FirebaseFirestore.instance;
       final stationName = _stationNameController.text.trim();
       final location = _pickedLocation!;
 
-      // 2. Write user profile.
-      // Matches the fields read by SessionGate.resolveHome() via UserModel:
-      //   profile.role.isStation  → role field
-      //   profile.stationId       → stationId field
-      //   profile.phoneE164       → phoneE164 field
       await firestore.collection('users').doc(uid).set({
         'uid': uid,
         'displayName': _ownerNameController.text.trim(),
@@ -122,7 +116,6 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // 3. Write station document (auto-approved when verified on Google Maps).
       await firestore.collection('stations').doc(uid).set({
         'id': uid,
         'ownerId': uid,
@@ -138,37 +131,34 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
         'longitude': location.longitude,
         if (location.googlePlaceId != null)
           'googlePlaceId': location.googlePlaceId,
-        'chargersCount': int.tryParse(_chargerCountController.text) ?? 1,
+        'chargersCount':
+            int.tryParse(_chargerCountController.text) ?? 1,
         'connectorTypes': _connectorTypes.toList(),
         'powerKw': _powerKw,
         'availablePorts': 1,
-        'totalPorts': int.tryParse(_chargerCountController.text) ?? 1,
+        'totalPorts':
+            int.tryParse(_chargerCountController.text) ?? 1,
         'pricePerKwh': 0.42,
         'rating': 0,
         'createdAt': FieldValue.serverTimestamp(),
-
-
       });
 
-      // Prevent auth race condition: sign out after registration, then return to login.
       await FirebaseAuth.instance.signOut();
-
       if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: const Color(0xFF00D4FF),
           content: Text(
-            'Station registered successfully. Please sign in.',
-            style: const TextStyle(color: Colors.black),
+            'Station registered. Please sign in.',
+            style: _dm(13, FontWeight.w500, color: Colors.white),
           ),
+          backgroundColor: _greenDark,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
         ),
       );
-
       Navigator.of(context).pop();
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -198,263 +188,253 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
+    final topPad = MediaQuery.paddingOf(context).top;
+    final bottomPad = MediaQuery.paddingOf(context).bottom;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: const Color(0xFF080B14),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_rounded,
-                color: Color(0xFF5A7FA8), size: 20),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          title: const Text('Register your station'),
-        ),
-        body: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              controller: _scrollController,
-              padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              children: [
-                const SizedBox(height: 8),
-                _buildIntro(),
-                const SizedBox(height: 32),
-
-                // ── Section A: Owner account ──
-                _buildSectionHeader(
-                  Icons.person_outline_rounded,
-                  'Owner account',
-                  'Your personal login credentials',
-                ),
-                const SizedBox(height: 16),
-                _buildOwnerNameField(),
-                const SizedBox(height: 14),
-                _buildEmailField(),
-                const SizedBox(height: 14),
-                _buildPasswordField(),
-                const SizedBox(height: 14),
-                _buildConfirmPasswordField(),
-                const SizedBox(height: 14),
-                _buildPhoneField(),
-
-                const SizedBox(height: 32),
-                const Divider(color: Color(0xFF1A2840), thickness: 0.8),
-                const SizedBox(height: 32),
-
-                // ── Section B: Station info ──
-                _buildSectionHeader(
-                  Icons.ev_station_rounded,
-                  'Station details',
-                  'Basic information about your station',
-                ),
-                const SizedBox(height: 16),
-                _buildStationNameField(),
-                const SizedBox(height: 14),
-                _buildLocationPicker(),
-
-                const SizedBox(height: 32),
-                const Divider(color: Color(0xFF1A2840), thickness: 0.8),
-                const SizedBox(height: 32),
-
-                // ── Section C: Charger details ──
-                _buildSectionHeader(
-                  Icons.electrical_services_rounded,
-                  'Charger information',
-                  'Details help drivers find compatible chargers',
-                ),
-                const SizedBox(height: 16),
-                _buildChargerCountField(),
-                const SizedBox(height: 20),
-                _buildPowerSlider(),
-                const SizedBox(height: 20),
-                _buildConnectorSelector(),
-
-                const SizedBox(height: 32),
-                if (_errorMessage != null) ...[
-                  _buildError(),
-                  const SizedBox(height: 20),
-                ],
-                _buildSubmitButton(),
-                const SizedBox(height: 32),
-                _buildTermsNote(),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIntro() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF00D4FF).withAlpha(10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFF00D4FF).withAlpha(40),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline_rounded,
-              color: Color(0xFF00D4FF), size: 18),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'Your station will be reviewed by our team after registration. '
-                  'You can complete pricing and booking details in your dashboard.',
-              style: TextStyle(
-                color: Color(0xFF5A7FA8),
-                fontSize: 13,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(IconData icon, String title, String subtitle) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: const Color(0xFF00D4FF).withAlpha(15),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: const Color(0xFF00D4FF), size: 18),
-        ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        backgroundColor: _canvas,
+        body: Column(
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFFEEF4FF),
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
+            Container(
+              color: _white,
+              padding: EdgeInsets.fromLTRB(8, topPad + 8, 16, 10),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(PhosphorIconsRegular.arrowLeft,
+                        color: _ink, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  Expanded(
+                    child: Text('Register your station',
+                        style: _sg(17, FontWeight.w700)),
+                  ),
+                ],
               ),
             ),
-            Text(
-              subtitle,
-              style: const TextStyle(color: Color(0xFF3A5A7A), fontSize: 12),
+            Container(height: 0.8, color: _border),
+
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  controller: _scrollController,
+                  padding: EdgeInsets.fromLTRB(
+                      16, 16, 16, 20 + bottomPad),
+                  children: [
+                    // Info banner
+                    _InfoBanner(
+                      'Your station will be reviewed after registration. '
+                      'Complete pricing and bookings in your dashboard.',
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── Owner account ─────────────────────────────────
+                    _SectionHeader(
+                      icon: PhosphorIconsRegular.userCircle,
+                      title: 'Owner account',
+                      subtitle: 'Your personal login credentials',
+                    ),
+                    const SizedBox(height: 14),
+
+                    _FormField(
+                      controller: _ownerNameController,
+                      label: 'Full name',
+                      icon: PhosphorIconsRegular.identificationCard,
+                      textCapitalization: TextCapitalization.words,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Enter your full name'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    _FormField(
+                      controller: _emailController,
+                      label: 'Email address',
+                      icon: PhosphorIconsRegular.envelope,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Enter your email';
+                        }
+                        if (!v.contains('@')) {
+                          return 'Enter a valid email address';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _FormField(
+                      controller: _passwordController,
+                      label: 'Password',
+                      icon: PhosphorIconsRegular.lock,
+                      obscureText: _obscurePassword,
+                      onToggleObscure: () => setState(
+                          () => _obscurePassword = !_obscurePassword),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return 'Enter a password';
+                        }
+                        if (v.length < 8) {
+                          return 'Password must be at least 8 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _FormField(
+                      controller: _confirmPasswordController,
+                      label: 'Confirm password',
+                      icon: PhosphorIconsRegular.lock,
+                      obscureText: _obscureConfirm,
+                      onToggleObscure: () => setState(
+                          () => _obscureConfirm = !_obscureConfirm),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return 'Confirm your password';
+                        }
+                        if (v != _passwordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPhoneField(),
+
+                    const SizedBox(height: 24),
+                    Divider(color: _border),
+                    const SizedBox(height: 20),
+
+                    // ── Station info ──────────────────────────────────
+                    _SectionHeader(
+                      icon: PhosphorIconsRegular.chargingStation,
+                      title: 'Station details',
+                      subtitle: 'Basic information about your station',
+                    ),
+                    const SizedBox(height: 14),
+
+                    _FormField(
+                      controller: _stationNameController,
+                      label: 'Station name',
+                      icon: PhosphorIconsRegular.chargingStation,
+                      hint: 'e.g. Green Energy Station Amman',
+                      textCapitalization: TextCapitalization.words,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty)
+                              ? 'Enter a station name'
+                              : null,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildLocationPicker(),
+
+                    const SizedBox(height: 24),
+                    Divider(color: _border),
+                    const SizedBox(height: 20),
+
+                    // ── Charger info ──────────────────────────────────
+                    _SectionHeader(
+                      icon: PhosphorIconsRegular.plugsConnected,
+                      title: 'Charger information',
+                      subtitle:
+                          'Details help drivers find compatible chargers',
+                    ),
+                    const SizedBox(height: 14),
+
+                    _FormField(
+                      controller: _chargerCountController,
+                      label: 'Number of charge points',
+                      icon: PhosphorIconsRegular.lightning,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(3),
+                      ],
+                      validator: (v) {
+                        final n = int.tryParse(v ?? '');
+                        if (n == null || n < 1) {
+                          return 'Enter a valid number (min 1)';
+                        }
+                        if (n > 500) {
+                          return 'Maximum 500 charge points';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _buildPowerSlider(),
+                    const SizedBox(height: 16),
+                    _buildConnectorSelector(),
+
+                    if (_errorMessage != null) ...[
+                      const SizedBox(height: 16),
+                      _ErrorBanner(message: _errorMessage!),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    // Submit
+                    GestureDetector(
+                      onTap: _isLoading ? null : _register,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: _isLoading
+                              ? const Color(0xFFE5E7EB)
+                              : _green,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: _isLoading
+                              ? []
+                              : [
+                                  BoxShadow(
+                                    color:
+                                        _green.withValues(alpha: 0.32),
+                                    blurRadius: 18,
+                                    spreadRadius: -4,
+                                    offset: const Offset(0, 7),
+                                  ),
+                                ],
+                        ),
+                        alignment: Alignment.center,
+                        child: _isLoading
+                            ? SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(
+                                          _green.withValues(alpha: 0.7)),
+                                ),
+                              )
+                            : Text('Register station',
+                                style: _sg(15, FontWeight.w700,
+                                    color: Colors.white)),
+                      ),
+                    )
+                        .animate()
+                        .fadeIn(delay: 40.ms, duration: 280.ms),
+
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Text(
+                        'By registering you agree to Chargix Terms of Service.',
+                        textAlign: TextAlign.center,
+                        style: _dm(11, FontWeight.w400,
+                            color: const Color(0xFFD1D5DB), h: 1.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
-      ],
-    );
-  }
-
-  // ── Section A fields ────────────────────────────────────────────────────
-
-  Widget _buildOwnerNameField() {
-    return TextFormField(
-      controller: _ownerNameController,
-      textInputAction: TextInputAction.next,
-      textCapitalization: TextCapitalization.words,
-      style: const TextStyle(color: Color(0xFFEEF4FF), fontSize: 15),
-      decoration: const InputDecoration(
-        labelText: 'Full name',
-        prefixIcon: Icon(Icons.badge_outlined, color: Color(0xFF2E4060), size: 20),
       ),
-      validator: (v) =>
-      (v == null || v.trim().isEmpty) ? 'Enter your full name' : null,
-    );
-  }
-
-  Widget _buildEmailField() {
-    return TextFormField(
-      controller: _emailController,
-      keyboardType: TextInputType.emailAddress,
-      textInputAction: TextInputAction.next,
-      autocorrect: false,
-      style: const TextStyle(color: Color(0xFFEEF4FF), fontSize: 15),
-      decoration: const InputDecoration(
-        labelText: 'Email address',
-        prefixIcon:
-        Icon(Icons.mail_outline_rounded, color: Color(0xFF2E4060), size: 20),
-      ),
-      validator: (v) {
-        if (v == null || v.trim().isEmpty) return 'Enter your email';
-        if (!v.contains('@')) return 'Enter a valid email address';
-        return null;
-      },
-    );
-  }
-
-  Widget _buildPasswordField() {
-    return TextFormField(
-      controller: _passwordController,
-      obscureText: _obscurePassword,
-      textInputAction: TextInputAction.next,
-      style: const TextStyle(color: Color(0xFFEEF4FF), fontSize: 15),
-      decoration: InputDecoration(
-        labelText: 'Password',
-        prefixIcon: const Icon(Icons.lock_outline_rounded,
-            color: Color(0xFF2E4060), size: 20),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscurePassword
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
-            color: const Color(0xFF2E4060),
-            size: 20,
-          ),
-          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-        ),
-      ),
-      validator: (v) {
-        if (v == null || v.isEmpty) return 'Enter a password';
-        if (v.length < 8) return 'Password must be at least 8 characters';
-        return null;
-      },
-    );
-  }
-
-  Widget _buildConfirmPasswordField() {
-    return TextFormField(
-      controller: _confirmPasswordController,
-      obscureText: _obscureConfirm,
-      textInputAction: TextInputAction.next,
-      style: const TextStyle(color: Color(0xFFEEF4FF), fontSize: 15),
-      decoration: InputDecoration(
-        labelText: 'Confirm password',
-        prefixIcon: const Icon(Icons.lock_outline_rounded,
-            color: Color(0xFF2E4060), size: 20),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscureConfirm
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
-            color: const Color(0xFF2E4060),
-            size: 20,
-          ),
-          onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-        ),
-      ),
-      validator: (v) {
-        if (v == null || v.isEmpty) return 'Confirm your password';
-        if (v != _passwordController.text) return 'Passwords do not match';
-        return null;
-      },
     );
   }
 
@@ -462,34 +442,31 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Phone number',
-          style: TextStyle(color: Color(0xFF8AAAC8), fontSize: 13, fontWeight: FontWeight.w500),
-        ),
+        Text('Phone number',
+            style: _dm(13, FontWeight.w600, color: _slate)),
         const SizedBox(height: 8),
         Row(
           children: [
             GestureDetector(
-              onTap: () => _showCountryPicker(),
+              onTap: _showCountryPicker,
               child: Container(
                 height: 54,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D1526),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF1E3A5F)),
+                  color: _white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _border, width: 1),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(_countryCode,
-                        style: const TextStyle(
-                            color: Color(0xFFEEF4FF),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500)),
+                        style:
+                            _dm(15, FontWeight.w500)),
                     const SizedBox(width: 4),
-                    const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: Color(0xFF2E4060), size: 16),
+                    const Icon(PhosphorIconsRegular.caretDown,
+                        color: _slate, size: 14),
                   ],
                 ),
               ),
@@ -499,16 +476,39 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
               child: TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.next,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(12),
                 ],
-                style: const TextStyle(color: Color(0xFFEEF4FF), fontSize: 15),
-                decoration: const InputDecoration(hintText: '7X XXX XXXX'),
+                style: _dm(15, FontWeight.w500),
+                decoration: InputDecoration(
+                  hintText: '7X XXX XXXX',
+                  hintStyle: _dm(14, FontWeight.w400,
+                      color: const Color(0xFFD1D5DB)),
+                  filled: true,
+                  fillColor: _white,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 14),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide:
+                          const BorderSide(color: _border, width: 1)),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide:
+                          const BorderSide(color: _border, width: 1)),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                          color: _green, width: 1.5)),
+                ),
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Enter phone number';
-                  if (v.trim().length < 7) return 'Phone number too short';
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Enter phone number';
+                  }
+                  if (v.trim().length < 7) {
+                    return 'Phone number too short';
+                  }
                   return null;
                 },
               ),
@@ -519,130 +519,55 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
     );
   }
 
-  // ── Section B fields ────────────────────────────────────────────────────
-
-  Widget _buildStationNameField() {
-    return TextFormField(
-      controller: _stationNameController,
-      textInputAction: TextInputAction.next,
-      textCapitalization: TextCapitalization.words,
-      style: const TextStyle(color: Color(0xFFEEF4FF), fontSize: 15),
-      decoration: const InputDecoration(
-        labelText: 'Station name',
-        hintText: 'e.g. Green Energy Station Amman',
-        prefixIcon:
-        Icon(Icons.ev_station_outlined, color: Color(0xFF2E4060), size: 20),
-      ),
-      validator: (v) =>
-      (v == null || v.trim().isEmpty) ? 'Enter a station name' : null,
-    );
-  }
-
   Widget _buildLocationPicker() {
     final loc = _pickedLocation;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Station location',
-          style: TextStyle(
-            color: Color(0xFF8AAAC8),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+    return GestureDetector(
+      onTap: _openLocationPicker,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: loc != null ? _green : _border,
+            width: loc != null ? 1.5 : 1.0,
           ),
         ),
-        const SizedBox(height: 8),
-        Material(
-          color: const Color(0xFF0D1526),
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            onTap: _openLocationPicker,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: loc != null
-                      ? const Color(0xFF00D4FF).withAlpha(80)
-                      : const Color(0xFF1E3A5F),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.map_rounded,
-                    color: loc != null
-                        ? const Color(0xFF00D4FF)
-                        : const Color(0xFF2E4060),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      loc?.formattedAddress ??
-                          'Tap to pin exact location on map',
-                      style: TextStyle(
-                        color: loc != null
-                            ? const Color(0xFFEEF4FF)
-                            : const Color(0xFF5A7FA8),
-                        fontSize: 14,
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded,
-                      color: Color(0xFF2E4060)),
-                ],
+        child: Row(
+          children: [
+            Icon(
+              PhosphorIconsRegular.mapTrifold,
+              size: 18,
+              color: loc != null ? _green : _slate,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                loc?.formattedAddress ??
+                    'Tap to pin exact location on map',
+                style: _dm(14, FontWeight.w400,
+                    color: loc != null ? _ink : _slate),
               ),
             ),
-          ),
+            const Icon(PhosphorIconsRegular.caretRight,
+                size: 16, color: _slate),
+          ],
         ),
-      ],
+      ),
     );
   }
 
   Future<void> _openLocationPicker() async {
-    final picked = await Navigator.of(context).push<PickedStationLocation>(
+    final picked =
+        await Navigator.of(context).push<PickedStationLocation>(
       MaterialPageRoute<PickedStationLocation>(
-        builder: (_) => StationLocationPickerScreen(
-          initial: _pickedLocation,
-        ),
+        builder: (_) =>
+            StationLocationPickerScreen(initial: _pickedLocation),
       ),
     );
     if (picked != null && mounted) {
       setState(() => _pickedLocation = picked);
     }
-  }
-
-  // ── Section C fields ────────────────────────────────────────────────────
-
-  Widget _buildChargerCountField() {
-    return Row(
-      children: [
-        Expanded(
-          child: TextFormField(
-            controller: _chargerCountController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(3),
-            ],
-            style: const TextStyle(color: Color(0xFFEEF4FF), fontSize: 15),
-            decoration: const InputDecoration(
-              labelText: 'Number of charge points',
-              prefixIcon: Icon(Icons.power_rounded,
-                  color: Color(0xFF2E4060), size: 20),
-            ),
-            validator: (v) {
-              final n = int.tryParse(v ?? '');
-              if (n == null || n < 1) return 'Enter a valid number (min 1)';
-              if (n > 500) return 'Maximum 500 charge points';
-              return null;
-            },
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildPowerSlider() {
@@ -652,39 +577,31 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Max power per point',
-              style: TextStyle(
-                  color: Color(0xFF8AAAC8),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500),
-            ),
+            Text('Max power per point',
+                style: _dm(13, FontWeight.w600, color: _slate)),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF00D4FF).withAlpha(15),
+                color: _greenSurface,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                    color: const Color(0xFF00D4FF).withAlpha(40), width: 1),
+                    color: _green.withValues(alpha: 0.3), width: 1),
               ),
-              child: Text(
-                '${_powerKw.toStringAsFixed(0)} kW',
-                style: const TextStyle(
-                    color: Color(0xFF00D4FF),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600),
-              ),
+              child: Text('${_powerKw.toStringAsFixed(0)} kW',
+                  style: _dm(13, FontWeight.w700, color: _greenDark)),
             ),
           ],
         ),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            activeTrackColor: const Color(0xFF00D4FF),
-            inactiveTrackColor: const Color(0xFF1E3A5F),
-            thumbColor: const Color(0xFF00D4FF),
-            overlayColor: const Color(0xFF00D4FF).withAlpha(30),
+            activeTrackColor: _green,
+            inactiveTrackColor: _border,
+            thumbColor: _green,
+            overlayColor: _green.withValues(alpha: 0.12),
             thumbShape:
-            const RoundSliderThumbShape(enabledThumbRadius: 10),
+                const RoundSliderThumbShape(enabledThumbRadius: 10),
+            trackHeight: 4,
           ),
           child: Slider(
             value: _powerKw,
@@ -694,13 +611,13 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
             onChanged: (v) => setState(() => _powerKw = v),
           ),
         ),
-        const Row(
+        Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('3.6 kW (slow)',
-                style: TextStyle(color: Color(0xFF2E4060), fontSize: 11)),
+                style: _dm(11, FontWeight.w400, color: _slate)),
             Text('350 kW (ultra-fast)',
-                style: TextStyle(color: Color(0xFF2E4060), fontSize: 11)),
+                style: _dm(11, FontWeight.w400, color: _slate)),
           ],
         ),
       ],
@@ -711,13 +628,8 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Connector types',
-          style: TextStyle(
-              color: Color(0xFF8AAAC8),
-              fontSize: 13,
-              fontWeight: FontWeight.w500),
-        ),
+        Text('Connector types',
+            style: _dm(13, FontWeight.w600, color: _slate)),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
@@ -725,40 +637,31 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
           children: _connectors.map((c) {
             final selected = _connectorTypes.contains(c);
             return GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (selected) {
-                    _connectorTypes.remove(c);
-                  } else {
-                    _connectorTypes.add(c);
-                  }
-                });
-              },
+              onTap: () => setState(() {
+                if (selected) {
+                  _connectorTypes.remove(c);
+                } else {
+                  _connectorTypes.add(c);
+                }
+              }),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: selected
-                      ? const Color(0xFF00D4FF).withAlpha(20)
-                      : const Color(0xFF0D1526),
+                      ? _greenSurface
+                      : const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: selected
-                        ? const Color(0xFF00D4FF).withAlpha(80)
-                        : const Color(0xFF1E3A5F),
-                    width: 1,
+                    color: selected ? _green : _border,
+                    width: selected ? 1.5 : 1.0,
                   ),
                 ),
                 child: Text(
                   c,
-                  style: TextStyle(
-                    color: selected
-                        ? const Color(0xFF00D4FF)
-                        : const Color(0xFF5A7FA8),
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  ),
+                  style: _dm(13, FontWeight.w600,
+                      color: selected ? _greenDark : _slate),
                 ),
               ),
             );
@@ -768,96 +671,255 @@ class _StationRegisterScreenState extends State<StationRegisterScreen> {
     );
   }
 
-  Widget _buildSubmitButton() {
-    return ElevatedButton(
-      onPressed: _isLoading ? null : _register,
-      child: _isLoading
-          ? const SizedBox(
-        height: 20,
-        width: 20,
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF080B14)),
-        ),
-      )
-          : const Text('Register station'),
-    );
-  }
-
-  Widget _buildError() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFF4D6A).withAlpha(15),
-        borderRadius: BorderRadius.circular(10),
-        border:
-        Border.all(color: const Color(0xFFFF4D6A).withAlpha(50), width: 1),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: Color(0xFFFF4D6A), size: 16),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _errorMessage!,
-              style: const TextStyle(
-                  color: Color(0xFFFF4D6A), fontSize: 13, height: 1.4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTermsNote() {
-    return const Center(
-      child: Text(
-        'By registering you agree to Chargix Terms of Service.\n'
-            'Your station appears on the map immediately after registration.',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Color(0xFF2E4060), fontSize: 11, height: 1.6),
-      ),
-    );
-  }
-
   void _showCountryPicker() {
     const codes = [
-      ('+962', 'Jordan'),
-      ('+966', 'Saudi Arabia'),
-      ('+971', 'UAE'),
-      ('+970', 'Palestine'),
-      ('+20', 'Egypt'),
-      ('+1', 'USA / Canada'),
-      ('+44', 'UK'),
+      ('+962', 'Jordan 🇯🇴'),
+      ('+966', 'Saudi Arabia 🇸🇦'),
+      ('+971', 'UAE 🇦🇪'),
+      ('+970', 'Palestine 🇵🇸'),
+      ('+20', 'Egypt 🇪🇬'),
+      ('+1', 'USA / Canada 🇺🇸'),
+      ('+44', 'UK 🇬🇧'),
     ];
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF0A0F1C),
+      backgroundColor: _white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 12),
           Container(
-            width: 40,
+            width: 36,
             height: 4,
             decoration: BoxDecoration(
-                color: const Color(0xFF2E4060),
+                color: _border,
                 borderRadius: BorderRadius.circular(2)),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Select country code',
+                  style: _sg(15, FontWeight.w700)),
+            ),
+          ),
           ...codes.map((c) => ListTile(
-            title: Text('${c.$2}  ${c.$1}',
-                style: const TextStyle(
-                    color: Color(0xFFEEF4FF), fontSize: 14)),
-            onTap: () {
-              setState(() => _countryCode = c.$1);
-              Navigator.pop(context);
-            },
-          )),
-          const SizedBox(height: 16),
+                leading: Text(c.$1,
+                    style: _sg(15, FontWeight.w700, color: _green)),
+                title: Text(c.$2,
+                    style: _dm(14, FontWeight.w400)),
+                onTap: () {
+                  setState(() => _countryCode = c.$1);
+                  Navigator.pop(context);
+                },
+              )),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Section header ────────────────────────────────────────────────────────────
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _greenSurface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: _green.withValues(alpha: 0.3), width: 1.5),
+          ),
+          child: Icon(icon, size: 18, color: _greenDark),
+        ),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: GoogleFonts.spaceGrotesk(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: _ink)),
+            Text(subtitle,
+                style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: _slate)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── Form field ────────────────────────────────────────────────────────────────
+class _FormField extends StatelessWidget {
+  const _FormField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.hint,
+    this.keyboardType,
+    this.textCapitalization = TextCapitalization.none,
+    this.obscureText = false,
+    this.onToggleObscure,
+    this.inputFormatters,
+    this.validator,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final String? hint;
+  final TextInputType? keyboardType;
+  final TextCapitalization textCapitalization;
+  final bool obscureText;
+  final VoidCallback? onToggleObscure;
+  final List<TextInputFormatter>? inputFormatters;
+  final FormFieldValidator<String>? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
+      obscureText: obscureText,
+      inputFormatters: inputFormatters,
+      style: GoogleFonts.dmSans(
+          fontSize: 15, fontWeight: FontWeight.w500, color: _ink),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.dmSans(
+            fontSize: 13, fontWeight: FontWeight.w500, color: _slate),
+        hintText: hint,
+        hintStyle: GoogleFonts.dmSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: const Color(0xFFD1D5DB)),
+        prefixIcon: Icon(icon, size: 18, color: _slate),
+        suffixIcon: onToggleObscure != null
+            ? IconButton(
+                icon: Icon(
+                  obscureText
+                      ? PhosphorIconsRegular.eye
+                      : PhosphorIconsRegular.eyeSlash,
+                  size: 18,
+                  color: _slate,
+                ),
+                onPressed: onToggleObscure,
+              )
+            : null,
+        filled: true,
+        fillColor: _white,
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: _border, width: 1)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: _border, width: 1)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide:
+                const BorderSide(color: _green, width: 1.5)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(
+                color: Color(0xFFDC2626), width: 1)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(
+                color: Color(0xFFDC2626), width: 1.5)),
+      ),
+      validator: validator,
+    );
+  }
+}
+
+// ── Info banner ───────────────────────────────────────────────────────────────
+class _InfoBanner extends StatelessWidget {
+  const _InfoBanner(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _greenSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: _green.withValues(alpha: 0.25), width: 1),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(PhosphorIconsRegular.info, size: 14,
+              color: _greenDark),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text,
+                style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: _greenDark,
+                    height: 1.5)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Error banner ──────────────────────────────────────────────────────────────
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEE2E2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+            width: 1),
+      ),
+      child: Row(
+        children: [
+          const Icon(PhosphorIconsRegular.warningCircle,
+              color: Color(0xFFDC2626), size: 16),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(message,
+                style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    color: const Color(0xFFDC2626),
+                    height: 1.4)),
+          ),
         ],
       ),
     );

@@ -51,21 +51,21 @@ class BookingRepository {
     }
   }
 
-  /// Atomic slot reservation (production booking path).
+  /// Atomic slot reservation via time-window booking path.
   Future<DataState<BookingModel>> reserveSlot({
     required String userId,
     required StationModel station,
     required StationSlotModel slot,
-    required DateTime scheduledStart,
-    required DateTime scheduledEnd,
+    required String windowId,
+    required String dateKey,
     String? vehicleId,
   }) async {
     final result = await _transactions.reserveSlot(
       userId: userId,
       station: station,
       slot: slot,
-      scheduledStart: scheduledStart,
-      scheduledEnd: scheduledEnd,
+      windowId: windowId,
+      dateKey: dateKey,
       vehicleId: vehicleId,
     );
     if (result is DataSuccess<BookingModel>) {

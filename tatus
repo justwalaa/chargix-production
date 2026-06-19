@@ -1,0 +1,10 @@
+[33ma53e652[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mui-redesign[m[33m)[m Add automated testing suite and integration tests
+[33m2355001[m production stabilization, maps, booking flow, notifications and testing
+[33mafe3611[m Enable Android desugaring and notification permission for release builds.
+[33m9afad3b[m production stabilization and station operations
+[33mc0244b0[m stable before claude map integration
+[33m39b1785[m map picker, auth routing fixes, places integration
+[33m93bee8c[m auth flow fixes and premium ui update
+[33m31034d4[m after otp navigation refactor
+[33mbd69277[m Resolve README merge conflict
+[33m4492ff3[m Initial production migration

@@ -41,7 +41,6 @@ class MapStationsService {
   LatLng? _lastCenter;
   List<StationModel> _latestPartners = const [];
   List<MapStation> _cachedExternal = const [];
-  bool _placesLoadedOnce = false;
   StreamSubscription<List<StationModel>>? _partnerSub;
   bool _loadingPlaces = false;
   int _loadGeneration = 0;
@@ -135,7 +134,7 @@ class MapStationsService {
 
     if (external.isNotEmpty) {
       _cachedExternal = external;
-      _placesLoadedOnce = true;
+      // _placesLoadedOnce = true; // Removed this line
     }
 
     // Second emit: partners + external together
@@ -201,7 +200,7 @@ class MapStationsService {
 
     if (external.isNotEmpty) {
       _cachedExternal = external;
-      _placesLoadedOnce = true;
+      // _placesLoadedOnce = true; // Removed this line
     }
 
     await _mergeAndEmit(
@@ -233,7 +232,7 @@ class MapStationsService {
   }) async {
     if (external.isNotEmpty) {
       _cachedExternal = external;
-      _placesLoadedOnce = true;
+      // _placesLoadedOnce = true; // Removed this line
     }
 
     final result = MapPipeline.process(

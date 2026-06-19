@@ -28,10 +28,12 @@ class UserRepository {
     }
   }
 
-  /// Creates or updates the user document after phone OTP sign-in.
+  /// Creates or updates the user document after sign-in (phone OTP or Google).
   Future<DataState<UserModel>> ensureUserAfterSignIn({
     required String uid,
     required String phoneE164,
+    String? email,
+    String? authProvider,
     UserRole role = UserRole.user,
     String? stationId,
     String locale = 'en',
@@ -43,12 +45,18 @@ class UserRepository {
       final profile = UserModel(
         uid: uid,
         phoneE164: phoneE164,
+        email: email ?? existing?.email,
+        authProvider: authProvider ?? existing?.authProvider,
         role: existing?.role ?? role,
         stationId: existing?.stationId ?? stationId,
         displayName: existing?.displayName,
         locale: existing?.locale ?? locale,
         notificationsEnabled:
             existing?.notificationsEnabled ?? notificationsEnabled,
+        // New users get false so session gate shows the registration flow.
+        // Existing users keep whatever they have (null = legacy = treated as done).
+        hasCompletedRegistration:
+            !exists ? false : existing?.hasCompletedRegistration,
         lastLoginAt: DateTime.now().toUtc(),
       );
       await _service.upsertUser(profile, isCreate: !exists);
@@ -67,6 +75,18 @@ class UserRepository {
   Future<DataState<void>> updateProfile(UserModel user) async {
     try {
       await _service.upsertUser(user, isCreate: false);
+      return const DataSuccess(null);
+    } catch (e, st) {
+      return DataError(e, stackTrace: st);
+    }
+  }
+
+  Future<DataState<void>> incrementBookingStats(
+    String uid, {
+    required bool qrVerified,
+  }) async {
+    try {
+      await _service.incrementBookingStats(uid, qrVerified: qrVerified);
       return const DataSuccess(null);
     } catch (e, st) {
       return DataError(e, stackTrace: st);

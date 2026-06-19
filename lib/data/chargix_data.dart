@@ -1,6 +1,7 @@
 import 'repositories/booking_repository.dart';
 import 'repositories/charging_session_repository.dart';
 import 'repositories/favorites_repository.dart';
+import 'repositories/notifications_repository.dart';
 import 'repositories/station_owner_repository.dart';
 import 'repositories/station_repository.dart';
 import 'repositories/user_repository.dart';
@@ -17,6 +18,8 @@ abstract final class ChargixData {
       StationOwnerRepository.instance;
   static BookingRepository get bookings => BookingRepository.instance;
   static FavoritesRepository get favorites => FavoritesRepository.instance;
+  static NotificationsRepository get notifications =>
+      NotificationsRepository.instance;
   static ChargingSessionRepository get chargingSessions =>
       ChargingSessionRepository.instance;
   static FirestoreSeedService get seed => FirestoreSeedService.instance;

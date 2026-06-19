@@ -17,6 +17,12 @@ class UserModel {
     this.notificationsEnabled = true,
     this.vehicleIds = const [],
     this.stationId,
+    this.passwordHash,
+    this.totalBookings = 0,
+    this.completedWithQR = 0,
+    this.isVerifiedDriver = false,
+    this.hasCompletedRegistration,
+    this.authProvider,
     this.createdAt,
     this.updatedAt,
     this.lastLoginAt,
@@ -33,6 +39,15 @@ class UserModel {
   final List<String> vehicleIds;
   /// Owned/managed station document id when [role] is [UserRole.station].
   final String? stationId;
+  /// SHA-256 hash of driver-set password (display/demo only — not used for auth).
+  final String? passwordHash;
+  final int totalBookings;
+  final int completedWithQR;
+  final bool isVerifiedDriver;
+  /// null  → legacy user (treated as registered), false → new unregistered, true → registered.
+  final bool? hasCompletedRegistration;
+  /// 'phone' | 'google' | null
+  final String? authProvider;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? lastLoginAt;
@@ -50,6 +65,13 @@ class UserModel {
       'notificationsEnabled': notificationsEnabled,
       'vehicleIds': vehicleIds,
       if (stationId != null) 'stationId': stationId,
+      if (passwordHash != null) 'passwordHash': passwordHash,
+      'totalBookings': totalBookings,
+      'completedWithQR': completedWithQR,
+      'isVerifiedDriver': isVerifiedDriver,
+      if (hasCompletedRegistration != null)
+        'hasCompletedRegistration': hasCompletedRegistration,
+      if (authProvider != null) 'authProvider': authProvider,
       if (createdAt != null)
         'createdAt': FirestoreHelpers.dateTimeToTimestamp(createdAt),
       if (updatedAt != null)
@@ -65,7 +87,8 @@ class UserModel {
           ? FirestoreHelpers.requireString(map, 'uid')
           : FirestoreHelpers.requireString(map, 'id'),
       phoneE164: FirestoreHelpers.optionalString(map, 'phoneE164') ??
-          FirestoreHelpers.requireString(map, 'phone'),
+          FirestoreHelpers.optionalString(map, 'phone') ??
+          '',
       displayName: FirestoreHelpers.optionalString(map, 'displayName'),
       email: FirestoreHelpers.optionalString(map, 'email'),
       photoUrl: FirestoreHelpers.optionalString(map, 'photoUrl'),
@@ -78,6 +101,13 @@ class UserModel {
       ),
       vehicleIds: FirestoreHelpers.stringList(map, 'vehicleIds'),
       stationId: FirestoreHelpers.optionalString(map, 'stationId'),
+      passwordHash: FirestoreHelpers.optionalString(map, 'passwordHash'),
+      totalBookings: (map['totalBookings'] as num?)?.toInt() ?? 0,
+      completedWithQR: (map['completedWithQR'] as num?)?.toInt() ?? 0,
+      isVerifiedDriver: (map['isVerifiedDriver'] as bool?) ?? false,
+      hasCompletedRegistration:
+          map['hasCompletedRegistration'] as bool?,
+      authProvider: FirestoreHelpers.optionalString(map, 'authProvider'),
       createdAt: FirestoreHelpers.timestampToDateTime(map['createdAt']),
       updatedAt: FirestoreHelpers.timestampToDateTime(map['updatedAt']),
       lastLoginAt: FirestoreHelpers.timestampToDateTime(map['lastLoginAt']),
@@ -93,6 +123,14 @@ class UserModel {
     bool? notificationsEnabled,
     List<String>? vehicleIds,
     String? stationId,
+    String? passwordHash,
+    int? totalBookings,
+    int? completedWithQR,
+    bool? isVerifiedDriver,
+    bool? hasCompletedRegistration,
+    String? authProvider,
+    DateTime? createdAt,
+    DateTime? updatedAt,
     DateTime? lastLoginAt,
   }) {
     return UserModel(
@@ -106,8 +144,15 @@ class UserModel {
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       vehicleIds: vehicleIds ?? this.vehicleIds,
       stationId: stationId ?? this.stationId,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
+      passwordHash: passwordHash ?? this.passwordHash,
+      totalBookings: totalBookings ?? this.totalBookings,
+      completedWithQR: completedWithQR ?? this.completedWithQR,
+      isVerifiedDriver: isVerifiedDriver ?? this.isVerifiedDriver,
+      hasCompletedRegistration:
+          hasCompletedRegistration ?? this.hasCompletedRegistration,
+      authProvider: authProvider ?? this.authProvider,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
     );
   }

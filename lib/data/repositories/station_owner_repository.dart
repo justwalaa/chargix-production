@@ -63,6 +63,16 @@ class StationOwnerRepository {
   Stream<List<StationSlotModel>> watchSlots(String stationId) =>
       _slots.watchSlots(stationId);
 
+  Future<DataState<void>> deleteSlot(String stationId, String slotId) async {
+    try {
+      await _slots.deleteSlot(stationId, slotId);
+      await syncPortCountsFromSlots(stationId);
+      return const DataSuccess(null);
+    } catch (e, st) {
+      return DataError(e, stackTrace: st);
+    }
+  }
+
   Future<DataState<void>> saveSlot(StationSlotModel slot) async {
     try {
       debugPrint('[SlotUpdate] save slot=${slot.id} station=${slot.stationId} '

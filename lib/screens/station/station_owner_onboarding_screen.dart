@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
 import '../../core/routing/session_gate.dart';
 import '../../core/result/data_state.dart';
 import '../../data/chargix_data.dart';
@@ -8,8 +11,24 @@ import '../../models/operating_hours_model.dart';
 import '../../models/picked_station_location.dart';
 import '../../models/station_registration_draft.dart';
 import '../auth/station_location_picker_screen.dart';
-import '../../theme/app_gradients.dart';
 import '../../theme/tokens/tokens.dart';
+
+const _green        = Color(0xFF22C55E);
+const _greenDark    = Color(0xFF16A34A);
+const _greenSurface = Color(0xFFDCFCE7);
+const _canvas       = Color(0xFFF8F9FA);
+const _white        = Color(0xFFFFFFFF);
+const _ink          = Color(0xFF101828);
+const _slate        = Color(0xFF6B7280);
+const _border       = Color(0xFFE5E7EB);
+
+TextStyle _sg(double size, FontWeight w,
+    {Color color = _ink, double ls = 0}) =>
+    GoogleFonts.spaceGrotesk(
+        fontSize: size, fontWeight: w, color: color, letterSpacing: ls);
+
+TextStyle _dm(double size, FontWeight w, {Color color = _ink, double? h}) =>
+    GoogleFonts.dmSans(fontSize: size, fontWeight: w, color: color, height: h);
 
 /// 3-step partner station registration (Firestore pending approval).
 class StationOwnerOnboardingScreen extends StatefulWidget {
@@ -27,7 +46,8 @@ class StationOwnerOnboardingScreen extends StatefulWidget {
       _StationOwnerOnboardingScreenState();
 }
 
-class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScreen> {
+class _StationOwnerOnboardingScreenState
+    extends State<StationOwnerOnboardingScreen> {
   final _page = PageController();
   int _step = 0;
   bool _submitting = false;
@@ -50,25 +70,19 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
   @override
   void dispose() {
     _page.dispose();
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
-    _confirmCtrl.dispose();
-    _stationNameCtrl.dispose();
-    _cityCtrl.dispose();
-    _addressCtrl.dispose();
-    _openCtrl.dispose();
-    _closeCtrl.dispose();
-    _managerCtrl.dispose();
-    _nationalIdCtrl.dispose();
-    _backupCtrl.dispose();
-    _logoUrlCtrl.dispose();
+    for (final c in [
+      _emailCtrl, _passwordCtrl, _confirmCtrl, _stationNameCtrl,
+      _cityCtrl, _addressCtrl, _openCtrl, _closeCtrl, _managerCtrl,
+      _nationalIdCtrl, _backupCtrl, _logoUrlCtrl,
+    ]) { c.dispose(); }
     super.dispose();
   }
 
   Future<void> _pickLocation() async {
     final picked = await Navigator.of(context).push<PickedStationLocation>(
       MaterialPageRoute(
-        builder: (_) => StationLocationPickerScreen(initial: _pickedLocation),
+        builder: (_) =>
+            StationLocationPickerScreen(initial: _pickedLocation),
       ),
     );
     if (picked == null || !mounted) return;
@@ -94,16 +108,12 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
 
   Future<void> _submit() async {
     if (_passwordCtrl.text != _confirmCtrl.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
+      _snack('Passwords do not match');
       return;
     }
     setState(() => _submitting = true);
     if (_pickedLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Set your station location on the map.')),
-      );
+      _snack('Set your station location on the map.');
       setState(() => _submitting = false);
       return;
     }
@@ -127,44 +137,91 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
       managerNationalId: _nationalIdCtrl.text.trim().isEmpty
           ? null
           : _nationalIdCtrl.text.trim(),
-      backupContactPhone:
-          _backupCtrl.text.trim().isEmpty ? null : _backupCtrl.text.trim(),
-      logoUrl: _logoUrlCtrl.text.trim().isEmpty ? null : _logoUrlCtrl.text.trim(),
+      backupContactPhone: _backupCtrl.text.trim().isEmpty
+          ? null
+          : _backupCtrl.text.trim(),
+      logoUrl: _logoUrlCtrl.text.trim().isEmpty
+          ? null
+          : _logoUrlCtrl.text.trim(),
     );
 
     final result = await ChargixData.stationOwner.submitPartnerRegistration(
       ownerUserId: widget.ownerUserId,
       draft: draft,
     );
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     setState(() => _submitting = false);
     if (result is DataSuccess<String>) {
       final home = await SessionGate.resolveHome();
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       await Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(builder: (_) => home),
         (_) => false,
       );
     } else if (result is DataError<String>) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Submit failed: ${result.errorOrNull}')),
-      );
+      _snack('Submit failed: ${result.errorOrNull}');
     }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg,
+            style: _dm(13, FontWeight.w500, color: Colors.white)),
+        backgroundColor: _ink,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final topPad = MediaQuery.paddingOf(context).top;
+    final bottomPad = MediaQuery.paddingOf(context).bottom;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Register station (${_step + 1}/3)'),
-      ),
+      backgroundColor: _canvas,
       body: Column(
         children: [
-          LinearProgressIndicator(value: (_step + 1) / 3),
+          // ── Header ─────────────────────────────────────────────────
+          Container(
+            color: _white,
+            padding: EdgeInsets.fromLTRB(8, topPad + 8, 16, 12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(PhosphorIconsRegular.arrowLeft,
+                          color: _ink, size: 20),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Register station (${_step + 1}/3)',
+                        style: _sg(17, FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Step progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (_step + 1) / 3,
+                    minHeight: 4,
+                    backgroundColor: _border,
+                    valueColor: const AlwaysStoppedAnimation(_green),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Pages ──────────────────────────────────────────────────
           Expanded(
             child: PageView(
               controller: _page,
@@ -176,17 +233,49 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.screenGutter),
-            child: FilledButton(
-              onPressed: _submitting ? null : _next,
-              child: _submitting
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_step < 2 ? 'Continue' : 'Create station'),
+
+          // ── Continue/Submit button ─────────────────────────────────
+          Container(
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + bottomPad),
+            color: _white,
+            child: GestureDetector(
+              onTap: _submitting ? null : _next,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                height: 54,
+                decoration: BoxDecoration(
+                  color: _submitting
+                      ? const Color(0xFFE5E7EB)
+                      : _green,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: _submitting
+                      ? []
+                      : [
+                          BoxShadow(
+                            color: _green.withValues(alpha: 0.32),
+                            blurRadius: 18,
+                            spreadRadius: -4,
+                            offset: const Offset(0, 7),
+                          ),
+                        ],
+                ),
+                alignment: Alignment.center,
+                child: _submitting
+                    ? SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              _green.withValues(alpha: 0.7)),
+                        ),
+                      )
+                    : Text(
+                        _step < 2 ? 'Continue' : 'Create station',
+                        style: _sg(15, FontWeight.w700,
+                            color: Colors.white),
+                      ),
+              ),
             ),
           ),
         ],
@@ -194,162 +283,270 @@ class _StationOwnerOnboardingScreenState extends State<StationOwnerOnboardingScr
     );
   }
 
+  // ── Step 1: Account ─────────────────────────────────────────────────────────
   Widget _stepAccount(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.screenGutter),
+      padding: const EdgeInsets.all(16),
       children: [
-        Text(
-          'Account',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+        _StepHeader(
+          icon: PhosphorIconsRegular.userCircle,
+          title: 'Account',
+          subtitle: 'Set up your operator login',
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Phone verified: ${widget.phoneE164 ?? '—'}',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        TextField(
-          controller: _emailCtrl,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(labelText: 'Business email'),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: _passwordCtrl,
-          obscureText: true,
-          decoration: const InputDecoration(labelText: 'Password'),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: _confirmCtrl,
-          obscureText: true,
-          decoration: const InputDecoration(labelText: 'Confirm password'),
-        ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 20),
+        if (widget.phoneE164 != null)
+          _InfoBanner('Phone verified: ${widget.phoneE164}'),
+        const SizedBox(height: 12),
+        _field(_emailCtrl, 'Business email',
+            icon: PhosphorIconsRegular.envelope,
+            keyboardType: TextInputType.emailAddress),
+        const SizedBox(height: 12),
+        _field(_passwordCtrl, 'Password',
+            icon: PhosphorIconsRegular.lock, obscure: true),
+        const SizedBox(height: 12),
+        _field(_confirmCtrl, 'Confirm password',
+            icon: PhosphorIconsRegular.lock, obscure: true),
+        const SizedBox(height: 10),
         Text(
           'Password is stored for future email login; phone OTP remains your sign-in method.',
-          style: Theme.of(context).textTheme.bodySmall,
+          style: _dm(12, FontWeight.w400, color: _slate, h: 1.5),
         ),
       ],
     );
   }
 
+  // ── Step 2: Station info ────────────────────────────────────────────────────
   Widget _stepStation(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.screenGutter),
+      padding: const EdgeInsets.all(16),
       children: [
-        Text(
-          'Station information',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
+        _StepHeader(
+          icon: PhosphorIconsRegular.chargingStation,
+          title: 'Station information',
+          subtitle: 'Basic details about your charging hub',
+        ),
+        const SizedBox(height: 20),
+        _field(_stationNameCtrl, 'Station name *',
+            icon: PhosphorIconsRegular.chargingStation),
+        const SizedBox(height: 12),
+        _field(_cityCtrl, 'City / region *',
+            icon: PhosphorIconsRegular.city),
+        const SizedBox(height: 12),
+        _field(_addressCtrl, 'Detailed address *',
+            icon: PhosphorIconsRegular.mapPin, maxLines: 2),
+        const SizedBox(height: 12),
+        // Location picker
+        GestureDetector(
+          onTap: _pickLocation,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _pickedLocation != null ? _green : _border,
+                width: _pickedLocation != null ? 1.5 : 1.0,
               ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        TextField(
-          controller: _stationNameCtrl,
-          decoration: const InputDecoration(labelText: 'Station name *'),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: _cityCtrl,
-          decoration: const InputDecoration(labelText: 'City / region *'),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: _addressCtrl,
-          maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Detailed address *'),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        OutlinedButton.icon(
-          onPressed: _pickLocation,
-          icon: const Icon(Icons.map_rounded),
-          label: Text(
-            _pickedLocation == null
-                ? 'Pick location on map *'
-                : 'Location set — tap to change',
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  PhosphorIconsRegular.mapTrifold,
+                  size: 18,
+                  color: _pickedLocation != null ? _green : _slate,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _pickedLocation?.formattedAddress ??
+                        'Pin exact location on map *',
+                    style: _dm(14, FontWeight.w400,
+                        color: _pickedLocation != null
+                            ? _ink
+                            : _slate),
+                  ),
+                ),
+                const Icon(PhosphorIconsRegular.caretRight,
+                    size: 16, color: _slate),
+              ],
+            ),
           ),
         ),
-        if (_pickedLocation != null) ...[
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            _pickedLocation!.formattedAddress,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
-              child: TextField(
-                controller: _openCtrl,
-                decoration: const InputDecoration(labelText: 'Opens'),
-              ),
+              child: _field(_openCtrl, 'Opens',
+                  icon: PhosphorIconsRegular.clockAfternoon),
             ),
-            const SizedBox(width: AppSpacing.md),
+            const SizedBox(width: 12),
             Expanded(
-              child: TextField(
-                controller: _closeCtrl,
-                decoration: const InputDecoration(labelText: 'Closes'),
-              ),
+              child: _field(_closeCtrl, 'Closes',
+                  icon: PhosphorIconsRegular.clockAfternoon),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: _managerCtrl,
-          decoration: const InputDecoration(labelText: 'Manager / owner name *'),
+        const SizedBox(height: 12),
+        _field(_managerCtrl, 'Manager / owner name *',
+            icon: PhosphorIconsRegular.userCircle),
+        const SizedBox(height: 12),
+        _field(_nationalIdCtrl, 'National ID (optional)',
+            icon: PhosphorIconsRegular.identificationCard),
+        const SizedBox(height: 12),
+        _field(_backupCtrl, 'Backup contact',
+            icon: PhosphorIconsRegular.phone),
+      ],
+    );
+  }
+
+  // ── Step 3: Verification ────────────────────────────────────────────────────
+  Widget _stepVerification(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _StepHeader(
+          icon: PhosphorIconsRegular.shieldCheck,
+          title: 'Verification',
+          subtitle: 'Final details before submission',
         ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: _nationalIdCtrl,
-          decoration: const InputDecoration(labelText: 'National ID (optional)'),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: _backupCtrl,
-          decoration: const InputDecoration(labelText: 'Backup contact'),
+        const SizedBox(height: 20),
+        _InfoBanner(
+            'After submission, your station will be reviewed before '
+            'appearing on the map as a Chargix partner.'),
+        const SizedBox(height: 16),
+        _field(_logoUrlCtrl, 'Logo URL (optional)',
+            icon: PhosphorIconsRegular.image),
+        const SizedBox(height: 12),
+        Text(
+          'You can manage bookings and appear on the map as a Chargix '
+          'partner (green marker) once approved.',
+          style: _dm(13, FontWeight.w400, color: _slate, h: 1.5),
         ),
       ],
     );
   }
 
-  Widget _stepVerification(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.screenGutter),
+  Widget _field(
+    TextEditingController ctrl,
+    String label, {
+    IconData? icon,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    bool obscure = false,
+  }) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      obscureText: obscure,
+      style: GoogleFonts.dmSans(
+          fontSize: 15, fontWeight: FontWeight.w500, color: _ink),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.dmSans(
+            fontSize: 13, fontWeight: FontWeight.w500, color: _slate),
+        prefixIcon: icon != null
+            ? Icon(icon, size: 17, color: _slate)
+            : null,
+        filled: true,
+        fillColor: _white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _border, width: 1)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _border, width: 1)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+                const BorderSide(color: _green, width: 1.5)),
+      ),
+    );
+  }
+}
+
+// ── Step header ───────────────────────────────────────────────────────────────
+class _StepHeader extends StatelessWidget {
+  const _StepHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
-            gradient: AppGradients.brand,
-            borderRadius: BorderRadius.circular(AppRadii.xxl),
+            color: _greenSurface,
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(
+                color: _green.withValues(alpha: 0.3), width: 1.5),
           ),
-          child: const Text(
-            'Verification',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 22,
-            ),
-          ),
+          child: Icon(icon, size: 20, color: _greenDark),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        TextField(
-          controller: _logoUrlCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Logo URL (optional)',
-            hintText: 'https://… or upload later in dashboard',
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: GoogleFonts.spaceGrotesk(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: _ink,
+                      letterSpacing: -0.2)),
+              Text(subtitle,
+                  style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: _slate)),
+            ],
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'After submission you can manage bookings and appear on the map '
-          'as a Chargix partner (green marker).',
-          style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
+    );
+  }
+}
+
+// ── Info banner ───────────────────────────────────────────────────────────────
+class _InfoBanner extends StatelessWidget {
+  const _InfoBanner(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _greenSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: _green.withValues(alpha: 0.25), width: 1),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(PhosphorIconsRegular.info, size: 14, color: _greenDark),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text,
+                style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: _greenDark,
+                    height: 1.5)),
+          ),
+        ],
+      ),
     );
   }
 }

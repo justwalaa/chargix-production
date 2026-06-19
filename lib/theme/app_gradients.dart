@@ -6,11 +6,11 @@ abstract final class AppGradients {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF99F6E4),
-      Color(0xFF5EEAD4),
-      Color(0xFF818CF8),
+      Color(0xFF4ADE80), // green-400
+      Color(0xFF22C55E), // green-500
+      Color(0xFF16A34A), // green-600
     ],
-    stops: [0.0, 0.45, 1.0],
+    stops: [0.0, 0.5, 1.0],
   );
 
   static const LinearGradient heroLight = LinearGradient(
