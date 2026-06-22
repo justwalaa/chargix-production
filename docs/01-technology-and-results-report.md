@@ -1,5 +1,10 @@
 # Technology & Results Report — Chargix
 
+> **How to use this file:** `[[FILL: ...]]` markers show where real data, diagrams, or
+> screenshots go. The Results section (§6) is completed last, once the final UI/APK is
+> ready. Delete this note before submitting.
+
+---
 
 ## 1. System Overview
 
@@ -33,8 +38,9 @@ Chargix uses a layered client architecture with a managed Firebase backend.
 
 - **Frontend (Flutter)** — a single cross-platform codebase serving both the driver
   and the station-operator experiences.
-- **State management** — `ChangeNotifier` with the `provider` package, organized
-  under a repository pattern so the UI never accesses data sources directly.
+- **State management** — Flutter's built-in `ChangeNotifier`, organized under a
+  repository pattern so the UI never accesses data sources directly (no third-party
+  state-management package is used).
 - **Backend (Firebase)** — Authentication, Cloud Firestore (database), and Cloud
   Messaging (push notifications), all managed services.
 - **External services** — Google Maps SDK (map rendering) and Google Places API
@@ -61,19 +67,34 @@ updates live without manual refresh.
 
 | Layer | Technology |
 |---|---|
-| Frontend framework | Flutter |
-| Language | Dart |
-| State management | `provider` (`ChangeNotifier`) + repository pattern |
+| Frontend framework | Flutter 3.41.8 |
+| Language | Dart 3.11.5 |
+| State management | Built-in `ChangeNotifier` + repository pattern (no third-party state package) |
 | Authentication | Firebase Authentication (Phone OTP for drivers, email/password for operators) |
 | Database | Cloud Firestore |
-| Push notifications | Firebase Cloud Messaging (FCM) |
+| Push notifications | Firebase Cloud Messaging (FCM) + `flutter_local_notifications` |
 | Maps | Google Maps SDK (`google_maps_flutter`) |
-| External station data | Google Places API |
-| QR check-in | `[[FILL: confirm QR packages from pubspec, e.g. qr_flutter + scanner]]` |
+| Location | `geolocator` |
+| External station data | Google Places API (via `http`) |
+| QR check-in | `qr_flutter` (display) + `mobile_scanner` (scan) |
+| Typography | `google_fonts` (Manrope) |
 | Icons / animation | `phosphor_flutter`, `flutter_animate` |
+| Other | `url_launcher`, `share_plus`, `crypto`, `shared_preferences` |
 
-`[[FILL: open pubspec.yaml and confirm every package above + add any major ones
-missing. Do not list a package you do not actually use.]]`
+**Resolved dependency versions** (from `pubspec.lock`): firebase_core 3.15.2,
+firebase_auth 5.7.0, cloud_firestore 5.6.12, firebase_messaging 15.2.10,
+flutter_local_notifications 17.2.4, google_maps_flutter 2.17.0, geolocator 13.0.4,
+http 1.6.0, mobile_scanner 6.0.11, qr_flutter 4.1.0, shared_preferences 2.5.5,
+url_launcher 6.3.2, share_plus 10.1.4, crypto 3.0.7, google_fonts 6.3.3,
+flutter_animate 4.5.2, phosphor_flutter 2.1.0.
+
+> Note: `google_sign_in` (6.3.0) is present in dependencies but the Google Sign-In
+> flow is currently deferred (guarded behind disabled code), so it is not an active
+> runtime feature.
+
+> **Confirm:** how `ChangeNotifier` is exposed to the widget tree — e.g. via
+> `ListenableBuilder` / `AnimatedBuilder`, or `addListener` in `initState`. State
+> this one detail accurately in case you are asked.
 
 ---
 
