@@ -1,8 +1,6 @@
 # Technology & Results Report — Chargix
 
-> **How to use this file:** `[[FILL: ...]]` markers show where real data, diagrams, or
-> screenshots go. The Results section (§6) is completed last, once the final UI/APK is
-> ready. Delete this note before submitting.
+
 
 ---
 
