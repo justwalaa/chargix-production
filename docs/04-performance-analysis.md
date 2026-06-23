@@ -1,11 +1,5 @@
 # Performance Analysis — Chargix
 
-> **How to use this file:** This report describes the performance-oriented design
-> decisions actually made in Chargix. It deliberately contains **no invented
-> benchmark numbers.** If you measure real values in Flutter DevTools (profile mode),
-> add them to §4 in the marked spot. Delete this note before submitting.
-
----
 
 ## 1. Overview
 
